@@ -463,6 +463,13 @@ def animate(time):
       #移動によるマイナス報酬の設定
       orig_pos = node_id_to_coordinate[orig_node_id]["latitude"], node_id_to_coordinate[orig_node_id]["longitude"]
       dest_pos = node_id_to_coordinate[dest_node_id]["latitude"], node_id_to_coordinate[dest_node_id]["longitude"]
+
+      # append data for destination_cordinate_data?.?.txt
+      car_id_datas.append(car)
+      time_datas.append(time)
+      orig_pos_datas.append(orig_pos)
+      dest_pos_datas.append(dest_pos)
+
       moving_distance = dist_on_sphere(orig_pos, dest_pos)
       car.experience[(index_x, index_y)]["reward"] -= moving_distance / 10 # 10km/L 1L/1$
       car.total_reward -= moving_distance / 10
