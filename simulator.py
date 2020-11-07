@@ -620,6 +620,11 @@ if __name__ == "__main__":
 
   print("### Start of simulation ###", datetime.datetime.now())
   total_rewards = []
+  orig_pos_datas = []
+  dest_pos_datas = []
+  car_id_datas = []
+  time_datas = []
+
   ani = FuncAnimation(fig, animate, frames=range(100000), init_func=init, blit=True, interval= 50)
   ani.save(str(epsilon) + "sfc-small.mp4", writer="ffmpeg")
 
