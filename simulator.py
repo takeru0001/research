@@ -647,6 +647,10 @@ if __name__ == "__main__":
       for index, experience in car.experience.items():
         f.write(str(index) + str(experience) + "\n")
 
+  with open("destination_coordinates_data" + str(epsilon) + ".txt", "w") as f:
+    for car_id_data, time_data, orig_pos_data, dest_pos_data in zip(car_id_datas, time_datas, orig_pos_datas, dest_pos_datas):
+      f.write(str(car_id_data) + str(time_data) + str(orig_pos_data) + str(dest_pos_data) + "\n")
+
   for car in cars_list:
     print(car.experience)
   
