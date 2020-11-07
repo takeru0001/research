@@ -463,6 +463,13 @@ def animate(time):
       #移動によるマイナス報酬の設定
       orig_pos = node_id_to_coordinate[orig_node_id]["latitude"], node_id_to_coordinate[orig_node_id]["longitude"]
       dest_pos = node_id_to_coordinate[dest_node_id]["latitude"], node_id_to_coordinate[dest_node_id]["longitude"]
+
+      # append data for destination_coordinates_data?.?.txt
+      car_id_datas.append(car)
+      time_datas.append(time)
+      orig_pos_datas.append(orig_pos)
+      dest_pos_datas.append(dest_pos)
+
       moving_distance = dist_on_sphere(orig_pos, dest_pos)
       car.experience[(index_x, index_y)]["reward"] -= moving_distance / 10 # 10km/L 1L/1$
       car.total_reward -= moving_distance / 10
@@ -620,6 +627,11 @@ if __name__ == "__main__":
 
   print("### Start of simulation ###", datetime.datetime.now())
   total_rewards = []
+  orig_pos_datas = []
+  dest_pos_datas = []
+  car_id_datas = []
+  time_datas = []
+
   ani = FuncAnimation(fig, animate, frames=range(100000), init_func=init, blit=True, interval= 50)
   ani.save(str(epsilon) + "sfc-small.mp4", writer="ffmpeg")
 
@@ -634,6 +646,10 @@ if __name__ == "__main__":
     for car in cars_list:
       for index, experience in car.experience.items():
         f.write(str(index) + str(experience) + "\n")
+
+  with open("destination_coordinates_data" + str(epsilon) + ".txt", "w") as f:
+    for car_id_data, time_data, orig_pos_data, dest_pos_data in zip(car_id_datas, time_datas, orig_pos_datas, dest_pos_datas):
+      f.write(str(car_id_data) + "," + str(time_data) + "," + str(orig_pos_data) + "," + str(dest_pos_data) + "\n")
 
   for car in cars_list:
     print(car.experience)
