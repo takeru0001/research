@@ -10,6 +10,7 @@ __pycache__/
 *.geojson
 *.poly
 *.pol
+cabspottingdata/
 
 # C extensions
 *.so
