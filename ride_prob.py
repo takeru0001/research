@@ -105,7 +105,6 @@ def find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, r
     #[0][0][0]左上 [max][max][max]右下　エリアごとの乗客数を入れるリスト
     ride_num_each_area = [[[0 for i in range(num_of_division)] for j in range(num_of_division)] for k in range(24)]
     reward_each_area = [[[] for i in range(num_of_division)] for j in range(num_of_division)]
-    print(ride_points[5])
 
     for data_dict in ride_points:
         longitude = data_dict["longitude"] #経度
