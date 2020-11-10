@@ -117,7 +117,7 @@ def find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, r
         index_time = int(time[11:13])
 
         if 0 <= index_x < num_of_division - 1 and 0 <= index_y < num_of_division - 1:
-            ride_num_each_area[index_y][index_x] += 1
+            ride_num_each_area[index_time][index_y][index_x] += 1
 
     for reward, orig, dist, elapsad_time in reward_list:
         longitude = orig[1]
