@@ -154,10 +154,9 @@ def find_ride_prob(num_of_division, ride_num_each_area):
         #prob_increase_per_a_ride = 0.8 / max_ride_num
 
 
-    ride_prob = [[0 for i in range(num_of_division)] for j in range(num_of_division)]
-    for i in range(num_of_division):
-        for j in range(num_of_division):
-            ride_prob[i][j] = ride_num_each_area[i][j] * prob_increase_per_a_ride
+        for i in range(num_of_division):
+            for j in range(num_of_division):
+                ride_prob[k][i][j] = ride_num_each_area[k][i][j] * prob_increase_per_a_ride
 
     return ride_prob
 
