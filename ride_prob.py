@@ -221,13 +221,15 @@ def main():
     #print()
     #print(reward_each_area[2][3])
     #print()
-    fig = plt.figure(dpi=300)
-    ax1 = fig.add_subplot(111)
-    sns.heatmap(ride_prob, cmap='coolwarm', square=True, robust=True, ax=ax1)
-    plt.xticks(color="None")
-    plt.yticks(color="None")
-    plt.tick_params(length=0)
-    plt.savefig("ride_probability_distribution.png")
+    for i in range(24):
+        fig = plt.figure(dpi=300)
+        ax1 = fig.add_subplot(111)
+        sns.heatmap(ride_prob[i], cmap='coolwarm', square=True, robust=True, ax=ax1)
+        plt.xticks(color="None")
+        plt.yticks(color="None")
+        plt.tick_params(length=0)
+        plt.savefig("ride_probability_distribution_"+str(i)+".png")
+        plt.close()
     #plt.show()
 
 
