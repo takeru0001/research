@@ -144,13 +144,14 @@ def find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, r
 def find_ride_prob(num_of_division, ride_num_each_area):
     ride_prob = [[[0 for i in range(num_of_division)] for j in range(num_of_division)] for k in range(24)]
 
-    max_ride_num = 0
-    for i in range(num_of_division):
-        for j in range(num_of_division):
-            if max_ride_num < ride_num_each_area[i][j]:
-                max_ride_num = ride_num_each_area[i][j]
-    prob_increase_per_a_ride = 1 / max_ride_num
-    #prob_increase_per_a_ride = 0.8 / max_ride_num
+    for k in range(24):
+        max_ride_num = 0
+        for i in range(num_of_division):
+            for j in range(num_of_division):
+                if max_ride_num < ride_num_each_area[k][i][j]:
+                    max_ride_num = ride_num_each_area[k][i][j]
+        prob_increase_per_a_ride = 1 / max_ride_num
+        #prob_increase_per_a_ride = 0.8 / max_ride_num
 
 
     ride_prob = [[0 for i in range(num_of_division)] for j in range(num_of_division)]
