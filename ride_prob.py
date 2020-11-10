@@ -169,7 +169,7 @@ def get_ride_prob_and_reward(filename_of_xml, num_of_division):
     infilename_taxies = get_filepath_of_taxies(file_of_taxi)
     ride_points, reward_list = extract_ride_point_reward(infilename_taxies)
     ride_num_each_area, reward_each_area = find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, reward_list)
-    ride_prob = find_ride_prob(ride_num_each_area)
+    ride_prob = find_ride_prob(num_of_division, ride_num_each_area)
     return ride_prob, reward_each_area
 
 
@@ -193,7 +193,7 @@ def main():
     ride_num_each_area, reward_each_area = find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, reward_list)
     print("///counted ride num each area")
     #print(ride_num_each_area)
-    ride_prob = find_ride_prob(ride_num_each_area)
+    ride_prob = find_ride_prob(num_of_division, ride_num_each_area)
     print("///calculated ride probability")
     #print(ride_prob)
 
