@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import seaborn as sns
 import matplotlib.pyplot as plt
+import datetime as dt
 from reward import reward_calculation
 
 def read_parse_netxml(infilename):
@@ -95,6 +96,7 @@ def find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, r
     bottom = origBoundary[1]
     leftmost = origBoundary[0]
     rightmost = origBoundary[2]
+    PST = dt.timezone(dt.timedelta(hours=-8), "PST")
 
     #分割されたエリアの辺の長さ　単位は緯度、経度
     x_of_divided_area = abs(leftmost - rightmost) / num_of_division
@@ -107,10 +109,14 @@ def find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, r
     for data_dict in ride_points:
         longitude = data_dict["longitude"] #経度
         latitude = data_dict["latitude"] #緯度
+        unixtime = data_dict["unixtime"]
+        time = str(dt.datetime.fromtimestamp(unixtime,PST))
         index_x = int(abs(leftmost - longitude) // x_of_divided_area)
         index_y = int(abs(top - latitude) // y_of_divided_area)
+        index_time = int(time[11:13])
+
         if 0 <= index_x < num_of_division - 1 and 0 <= index_y < num_of_division - 1:
-            ride_num_each_area[index_y][index_x] += 1
+            ride_num_each_area[index_time][index_y][index_x] += 1
 
     for reward, orig, dist, elapsad_time in reward_list:
         longitude = orig[1]
