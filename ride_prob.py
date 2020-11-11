@@ -174,7 +174,7 @@ def get_ride_prob_and_reward(filename_of_xml, num_of_division):
 
 
 def main():
-    filename_of_xml = "SanFrancisco2.net.xml"
+    filename_of_xml = "EntireSanFrancisco.net.xml"
     file_of_taxi = "./cabspottingdata/_cabs.txt"
 
     #1辺を何分割するか
