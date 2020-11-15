@@ -299,12 +299,19 @@ def init():
 # animation update
 #@jit(parallel=True)
 animation_count = 0
+index_time = 0
 def animate(time):
 
   global animation_count
   animation_count += 1
   if animation_count % 100 == 0:
     print("animation step: " + str(animation_count), datetime.datetime.now())
+
+  global index_time 
+  if animation_count % 60 == 0: #1hあたりのstep数が50の場合
+    index_time += 1
+    if index_time > 23:
+      index_time = 0
 
   global cars_list
 
