@@ -125,8 +125,8 @@ def find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, r
         orig_y = int(abs(top - latitude) // y_of_divided_area)
         dist_x = int(abs(leftmost - dist[1]) // x_of_divided_area)
         dist_y = int(abs(top - dist[0]) // y_of_divided_area)
-        if 0 <= orig_x < num_of_division - 1 and 0 <= orig_y < num_of_division - 1:
-            if 0 <= dist_x < num_of_division - 1 and 0 <= dist_y < num_of_division - 1:
+        if 0 <= orig_x < num_of_division and 0 <= orig_y < num_of_division:
+            if 0 <= dist_x < num_of_division and 0 <= dist_y < num_of_division:
                 #dist_x = int(abs(leftmost - dist[1]) // x_of_divided_area)
                 #dist_y = int(abs(top - dist[0]) // y_of_divided_area)
 
