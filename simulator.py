@@ -385,7 +385,7 @@ def animate(time):
 
       # 目的地の設定
       while True:
-        if ride_prob[index_y][index_x] >= random.random() and len(reward_each_area[index_y][index_x]):
+        if ride_prob[index_time][index_y][index_x] >= random.random() and len(reward_each_area[index_y][index_x]):
           #そのエリアで乗客を拾える場合
           ride_flag = True
 
@@ -461,7 +461,7 @@ def animate(time):
           dest_node_id = choose_dest_node_at_random()
           continue
         if ride_flag:
-          car.experience[(index_x, index_y)]["reward"] += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
+          car.experience[index_time][(index_x, index_y)]["reward"] += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
           car.total_reward += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
           #ride_flag = False
           #print("get reward")
