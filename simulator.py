@@ -464,7 +464,10 @@ def animate(time):
           dest_node_id = choose_dest_node_at_random()
           continue
         if ride_flag:
-          car.experience[index_time][(index_x, index_y)]["reward"] += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
+          for i in car.experience[index_time]:
+            if ((index_x, index_y) in i.keys()):
+              i[(index_x, index_y)]["reward"] += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
+              break
           car.total_reward += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
           #ride_flag = False
           #print("get reward")
