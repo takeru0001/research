@@ -4,6 +4,8 @@
 # import modules
 import xml.etree.ElementTree as ET
 import sys
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -28,7 +30,8 @@ earth_rad = 6378.137
 
 # simulation settings
 #infilename = "sfc_main.net.xml"
-infilename = "SanFrancisco2.net.xml"
+#infilename = "SanFrancisco2.net.xml"
+infilename = "EntireSanFrancisco.net.xml"
 #infilename = "sfc_small.net.xml"
 #infilename = "sfc.net.xml"
 
@@ -37,7 +40,8 @@ png_infilename = "sanfrancisco.png"
 
 #filename_geojson = "sfc_small.geojson"
 #filename_geojson = "sfc_main.geojson"
-filename_geojson = "SanFrancisco2.geojson"
+filename_geojson = "EntireSanFrancisco.geojson"
+#filename_geojson = "SanFrancisco2.geojson"
 #filename_geojson = "sfc.geojson"
 
 
