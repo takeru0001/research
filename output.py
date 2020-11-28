@@ -32,7 +32,7 @@ def heatmap(cars_list, num_of_division, e, save_dir):
     plt.savefig(os.path.join(save_dir, str(e) + "Evaluation_value_each_area.png"))
     plt.close("all")
 
-def reward(total_rewards, e):
+def reward(total_rewards, e, save_dir):
     reward_change = []
     prev_reward = total_rewards[0]
     for i in range(len(total_rewards)):
@@ -46,5 +46,5 @@ def reward(total_rewards, e):
     plt.xlabel("simulation step (*5000)")
     plt.ylabel("earned reward")
     plt.title("Changes in earned rewards")
-    plt.savefig(str(e) + "reawrd.png")
+    plt.savefig(os.path.join(save_dir, str(e) + "reawrd.png"))
     plt.close("all")
