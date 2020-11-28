@@ -1,5 +1,6 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
+import os
 
 def heatmap(cars_list, num_of_division, e):
     total_of_reward_step_list = [[{"reward":0, "step":0} for i in range(num_of_division)] for j in range(num_of_division)]
