@@ -371,21 +371,36 @@ def animate(time):
       #car.experience[orig_index_y][orig_index_x]["step"] += car.num_of_elapsed_steps
       orig_node_id = car.dest_node_id
 
-      if (index_x, index_y) not in car.experience.keys():
-        car.experience[(index_x, index_y)] = {
-          "reward": 0,
-          "count": 0,
-          "step": 0,
-          "reward per step": 0,
-        }
-      if (orig_index_x, orig_index_y) in car.experience.keys():
-        car.experience[(orig_index_x, orig_index_y)]["step"] += car.num_of_elapsed_steps
+      if (len(car.experience[index_time]) == 0):
+        car.experience[index_time].append({(index_x, index_y):{
+              "reward": 0,
+              "count": 0,
+              "step": 0,
+              "reward per step": 0,
+            }})
+      else:
+        break_flag = False
+        for i in car.experience[index_time]:
+          if ((index_x, index_y) in i.keys()):
+            break_flag = True
+            break
+        if(break_flag == False):
+          car.experience[index_time].append({(index_x, index_y):{
+                "reward": 0,
+                "count": 0,
+                "step": 0,
+                "reward per step": 0,
+              }})
 
-        step = car.experience[(orig_index_x, orig_index_y)]["step"]
-        reward = car.experience[(orig_index_x, orig_index_y)]["reward"]
-        car.experience[(orig_index_x, orig_index_y)]["reward per step"] = reward / step
+      for i in car.experience[index_time]:
+        if (orig_index_x, orig_index_y) in i.keys():
+          i[(orig_index_x, orig_index_y)]["step"] += car.num_of_elapsed_steps
 
-      #print(car.experience)
+          step = i[(orig_index_x, orig_index_y)]["step"]
+          reward = i[(orig_index_x, orig_index_y)]["reward"]
+          i[(orig_index_x, orig_index_y)]["reward per step"] = reward / step
+          break
+
 
       # 目的地の設定
       while True:
