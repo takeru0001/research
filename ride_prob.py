@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import seaborn as sns
 import matplotlib.pyplot as plt
+import datetime as dt
 from reward import reward_calculation
 
 def read_parse_netxml(infilename):
@@ -95,22 +96,27 @@ def find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, r
     bottom = origBoundary[1]
     leftmost = origBoundary[0]
     rightmost = origBoundary[2]
+    PST = dt.timezone(dt.timedelta(hours=-8), "PST")
 
     #分割されたエリアの辺の長さ　単位は緯度、経度
     x_of_divided_area = abs(leftmost - rightmost) / num_of_division
     y_of_divided_area = abs(top - bottom) / num_of_division
 
-    #[0][0]左上 [max][max]右下　エリアごとの乗客数を入れるリスト
-    ride_num_each_area = [[0 for i in range(num_of_division)] for j in range(num_of_division)]
+    #[0][0][0]左上 [max][max][max]右下　エリアごとの乗客数を入れるリスト
+    ride_num_each_area = [[[0 for i in range(num_of_division)] for j in range(num_of_division)] for k in range(24)]
     reward_each_area = [[[] for i in range(num_of_division)] for j in range(num_of_division)]
 
     for data_dict in ride_points:
         longitude = data_dict["longitude"] #経度
         latitude = data_dict["latitude"] #緯度
+        unixtime = data_dict["unixtime"]
+        time = str(dt.datetime.fromtimestamp(unixtime,PST))
         index_x = int(abs(leftmost - longitude) // x_of_divided_area)
         index_y = int(abs(top - latitude) // y_of_divided_area)
+        index_time = int(time[11:13])
+
         if 0 <= index_x < num_of_division - 1 and 0 <= index_y < num_of_division - 1:
-            ride_num_each_area[index_y][index_x] += 1
+            ride_num_each_area[index_time][index_y][index_x] += 1
 
     for reward, orig, dist, elapsad_time in reward_list:
         longitude = orig[1]
@@ -119,8 +125,8 @@ def find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, r
         orig_y = int(abs(top - latitude) // y_of_divided_area)
         dist_x = int(abs(leftmost - dist[1]) // x_of_divided_area)
         dist_y = int(abs(top - dist[0]) // y_of_divided_area)
-        if 0 <= orig_x < num_of_division - 1 and 0 <= orig_y < num_of_division - 1:
-            if 0 <= dist_x < num_of_division - 1 and 0 <= dist_y < num_of_division - 1:
+        if 0 <= orig_x < num_of_division and 0 <= orig_y < num_of_division:
+            if 0 <= dist_x < num_of_division and 0 <= dist_y < num_of_division:
                 #dist_x = int(abs(leftmost - dist[1]) // x_of_divided_area)
                 #dist_y = int(abs(top - dist[0]) // y_of_divided_area)
 
@@ -135,22 +141,22 @@ def find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, r
     return ride_num_each_area, reward_each_area
 
 
-def find_ride_prob(ride_num_each_area):
-    num_of_division = len(ride_num_each_area)
+def find_ride_prob(num_of_division, ride_num_each_area):
+    ride_prob = [[[0 for i in range(num_of_division)] for j in range(num_of_division)] for k in range(24)]
 
-    max_ride_num = 0
-    for i in range(num_of_division):
-        for j in range(num_of_division):
-            if max_ride_num < ride_num_each_area[i][j]:
-                max_ride_num = ride_num_each_area[i][j]
-    prob_increase_per_a_ride = 1 / max_ride_num
-    #prob_increase_per_a_ride = 0.8 / max_ride_num
+    for k in range(24):
+        max_ride_num = 0
+        for i in range(num_of_division):
+            for j in range(num_of_division):
+                if max_ride_num < ride_num_each_area[k][i][j]:
+                    max_ride_num = ride_num_each_area[k][i][j]
+        prob_increase_per_a_ride = 1 / max_ride_num
+        #prob_increase_per_a_ride = 0.8 / max_ride_num
 
 
-    ride_prob = [[0 for i in range(num_of_division)] for j in range(num_of_division)]
-    for i in range(num_of_division):
-        for j in range(num_of_division):
-            ride_prob[i][j] = ride_num_each_area[i][j] * prob_increase_per_a_ride
+        for i in range(num_of_division):
+            for j in range(num_of_division):
+                ride_prob[k][i][j] = ride_num_each_area[k][i][j] * prob_increase_per_a_ride
 
     return ride_prob
 
@@ -163,12 +169,12 @@ def get_ride_prob_and_reward(filename_of_xml, num_of_division):
     infilename_taxies = get_filepath_of_taxies(file_of_taxi)
     ride_points, reward_list = extract_ride_point_reward(infilename_taxies)
     ride_num_each_area, reward_each_area = find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, reward_list)
-    ride_prob = find_ride_prob(ride_num_each_area)
+    ride_prob = find_ride_prob(num_of_division, ride_num_each_area)
     return ride_prob, reward_each_area
 
 
 def main():
-    filename_of_xml = "SanFrancisco2.net.xml"
+    filename_of_xml = "EntireSanFrancisco.net.xml"
     file_of_taxi = "./cabspottingdata/_cabs.txt"
 
     #1辺を何分割するか
@@ -187,7 +193,7 @@ def main():
     ride_num_each_area, reward_each_area = find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, reward_list)
     print("///counted ride num each area")
     #print(ride_num_each_area)
-    ride_prob = find_ride_prob(ride_num_each_area)
+    ride_prob = find_ride_prob(num_of_division, ride_num_each_area)
     print("///calculated ride probability")
     #print(ride_prob)
 
@@ -215,13 +221,15 @@ def main():
     #print()
     #print(reward_each_area[2][3])
     #print()
-    fig = plt.figure(dpi=300)
-    ax1 = fig.add_subplot(111)
-    sns.heatmap(ride_prob, cmap='coolwarm', square=True, robust=True, ax=ax1)
-    plt.xticks(color="None")
-    plt.yticks(color="None")
-    plt.tick_params(length=0)
-    plt.savefig("ride_probability_distribution.png")
+    for i in range(24):
+        fig = plt.figure(dpi=300)
+        ax1 = fig.add_subplot(111)
+        sns.heatmap(ride_prob[i], cmap='coolwarm', square=True, robust=True, ax=ax1)
+        plt.xticks(color="None")
+        plt.yticks(color="None")
+        plt.tick_params(length=0)
+        plt.savefig("ride_probability_distribution_"+str(i)+".png")
+        plt.close()
     #plt.show()
 
 

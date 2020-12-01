@@ -4,6 +4,8 @@
 # import modules
 import xml.etree.ElementTree as ET
 import sys
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -23,12 +25,14 @@ from lane import Lane
 from road_segment import RoadSegment
 from ride_prob import get_ride_prob_and_reward
 import output
+import os
 
 earth_rad = 6378.137
 
 # simulation settings
 #infilename = "sfc_main.net.xml"
-infilename = "SanFrancisco2.net.xml"
+#infilename = "SanFrancisco2.net.xml"
+infilename = "EntireSanFrancisco.net.xml"
 #infilename = "sfc_small.net.xml"
 #infilename = "sfc.net.xml"
 
@@ -37,7 +41,8 @@ png_infilename = "sanfrancisco.png"
 
 #filename_geojson = "sfc_small.geojson"
 #filename_geojson = "sfc_main.geojson"
-filename_geojson = "SanFrancisco2.geojson"
+filename_geojson = "EntireSanFrancisco.geojson"
+#filename_geojson = "SanFrancisco2.geojson"
 #filename_geojson = "sfc.geojson"
 
 
@@ -299,12 +304,19 @@ def init():
 # animation update
 #@jit(parallel=True)
 animation_count = 0
+index_time = 0
 def animate(time):
 
   global animation_count
   animation_count += 1
   if animation_count % 100 == 0:
     print("animation step: " + str(animation_count), datetime.datetime.now())
+
+  global index_time 
+  if animation_count % 2880 == 0: #1hあたりのstep数が1000の場合
+    index_time += 1
+    if index_time > 23:
+      index_time = 0
 
   global cars_list
 
@@ -360,25 +372,40 @@ def animate(time):
       #car.experience[orig_index_y][orig_index_x]["step"] += car.num_of_elapsed_steps
       orig_node_id = car.dest_node_id
 
-      if (index_x, index_y) not in car.experience.keys():
-        car.experience[(index_x, index_y)] = {
-          "reward": 0,
-          "count": 0,
-          "step": 0,
-          "reward per step": 0,
-        }
-      if (orig_index_x, orig_index_y) in car.experience.keys():
-        car.experience[(orig_index_x, orig_index_y)]["step"] += car.num_of_elapsed_steps
+      if (len(car.experience[index_time]) == 0):
+        car.experience[index_time].append({(index_x, index_y):{
+              "reward": 0,
+              "count": 0,
+              "step": 0,
+              "reward per step": 0,
+            }})
+      else:
+        break_flag = False
+        for i in car.experience[index_time]:
+          if ((index_x, index_y) in i.keys()):
+            break_flag = True
+            break
+        if(break_flag == False):
+          car.experience[index_time].append({(index_x, index_y):{
+                "reward": 0,
+                "count": 0,
+                "step": 0,
+                "reward per step": 0,
+              }})
 
-        step = car.experience[(orig_index_x, orig_index_y)]["step"]
-        reward = car.experience[(orig_index_x, orig_index_y)]["reward"]
-        car.experience[(orig_index_x, orig_index_y)]["reward per step"] = reward / step
+      for i in car.experience[index_time]:
+        if (orig_index_x, orig_index_y) in i.keys():
+          i[(orig_index_x, orig_index_y)]["step"] += car.num_of_elapsed_steps
 
-      #print(car.experience)
+          step = i[(orig_index_x, orig_index_y)]["step"]
+          reward = i[(orig_index_x, orig_index_y)]["reward"]
+          i[(orig_index_x, orig_index_y)]["reward per step"] = reward / step
+          break
+
 
       # 目的地の設定
       while True:
-        if ride_prob[index_y][index_x] >= random.random() and len(reward_each_area[index_y][index_x]):
+        if ride_prob[index_time][index_y][index_x] >= random.random() and len(reward_each_area[index_y][index_x]):
           #そのエリアで乗客を拾える場合
           ride_flag = True
 
@@ -406,31 +433,32 @@ def animate(time):
           else: #活用
             max_reward_per_step = -float("inf")
             max_index = None
-            if len(car.experience) == 0: #過去の経験がない場合はランダムで選ぶ
+            if len(car.experience[index_time]) == 0: #過去の経験がない場合はランダムで選ぶ
               dest_node_id = choose_dest_node_at_random()
             else:
-              for index, experience in car.experience.items():
-                x_diff = abs(index_x - index[0])
-                y_diff = abs(index_y - index[1])
-                distance = np.sqrt((x_diff * X) ** 2 + (y_diff * Y) ** 2) #現在地から仮の目的地への距離
-                #print("distance", distance)
-                tmp_reward = -(distance / 10) #仮の目的地への移動コスト
-                if experience["step"] != 0 or experience["count"] != 0:
-                  step_per_count = experience["step"] / experience["count"]
-                  #count_per_step = experience["count"] / experience["step"]
-                  if step_per_count != 0: #count_per_step != 0:
-                    tmp_reward /= step_per_count
-                    #tmp_reward /= count_per_step #1stepあたりのrewardにかかる移動コスト
+              for i in car.experience[index_time]:
+                for index, experience in i.items():
+                  x_diff = abs(index_x - index[0])
+                  y_diff = abs(index_y - index[1])
+                  distance = np.sqrt((x_diff * X) ** 2 + (y_diff * Y) ** 2) #現在地から仮の目的地への距離
+                  #print("distance", distance)
+                  tmp_reward = -(distance / 10) #仮の目的地への移動コスト
+                  if experience["count"] != 0:
+                    step_per_count = experience["step"] / experience["count"]
+                    #count_per_step = experience["count"] / experience["step"]
+                    if step_per_count != 0: #count_per_step != 0:
+                      tmp_reward /= step_per_count
+                      #tmp_reward /= count_per_step #1stepあたりのrewardにかかる移動コスト
+                    else:
+                      tmp_reward = 0
                   else:
                     tmp_reward = 0
-                else:
-                  tmp_reward = 0
 
-                tmp_reward_per_step = experience["reward per step"] + tmp_reward
-                #print("#", experience["reward per step"], tmp_reward)
-                if tmp_reward_per_step > max_reward_per_step:
-                  max_reward_per_step = tmp_reward_per_step
-                  max_index = index
+                  tmp_reward_per_step = experience["reward per step"] + tmp_reward
+                  #print("#", experience["reward per step"], tmp_reward)
+                  if tmp_reward_per_step > max_reward_per_step:
+                    max_reward_per_step = tmp_reward_per_step
+                    max_index = index
 
               #print(max_index, max_reward_per_step)
 
@@ -454,7 +482,10 @@ def animate(time):
           dest_node_id = choose_dest_node_at_random()
           continue
         if ride_flag:
-          car.experience[(index_x, index_y)]["reward"] += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
+          for i in car.experience[index_time]:
+            if ((index_x, index_y) in i.keys()):
+              i[(index_x, index_y)]["reward"] += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
+              break
           car.total_reward += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
           #ride_flag = False
           #print("get reward")
@@ -471,10 +502,12 @@ def animate(time):
       dest_pos_datas.append(dest_pos)
 
       moving_distance = dist_on_sphere(orig_pos, dest_pos)
-      car.experience[(index_x, index_y)]["reward"] -= moving_distance / 10 # 10km/L 1L/1$
+      for i in car.experience[index_time]:
+        if ((index_x, index_y) in i.keys()):
+          i[(index_x, index_y)]["reward"] -= moving_distance / 10 # 10km/L 1L/1$
+          i[(index_x, index_y)]["count"] += 1
+          break
       car.total_reward -= moving_distance / 10
-      
-      car.experience[(index_x, index_y)]["count"] += 1
 
       # create new car
       new_car = Car(orig_node_id, dest_node_id, shortest_path, num_of_division)
@@ -632,27 +665,32 @@ if __name__ == "__main__":
   car_id_datas = []
   time_datas = []
 
-  ani = FuncAnimation(fig, animate, frames=range(100000), init_func=init, blit=True, interval= 50)
+  ani = FuncAnimation(fig, animate, frames=range(150000), init_func=init, blit=True, interval= 50)
   ani.save(str(epsilon) + "sfc-small.mp4", writer="ffmpeg")
 
-  output.reward(total_rewards, epsilon)
-  output.heatmap(cars_list, num_of_division, epsilon)
+  save_dir = "EntireSanFrancisco_" + str(epsilon) + "_"+ str(datetime.date.today())
+  os.makedirs(save_dir, exist_ok=True)
 
-  with open("total_reward_" + str(epsilon) + ".txt", "w") as f:
+  output.reward(total_rewards, epsilon, save_dir)
+  output.heatmap(cars_list, num_of_division, epsilon, save_dir)
+  print(car.experience)
+
+  with open(os.path.join(save_dir, "total_reward_" + str(epsilon) + ".txt"), "w") as f:
     for reward in total_rewards:
       f.write(str(reward) + "\n")
-  
-  with open("experience_" + str(epsilon) + ".txt", "w") as f:
-    for car in cars_list:
-      for index, experience in car.experience.items():
-        f.write(str(index) + str(experience) + "\n")
 
-  with open("destination_coordinates_data" + str(epsilon) + ".txt", "w") as f:
+  with open(os.path.join(save_dir,"destination_coordinates_data" + str(epsilon) + ".txt"), "w") as f:
     for car_id_data, time_data, orig_pos_data, dest_pos_data in zip(car_id_datas, time_datas, orig_pos_datas, dest_pos_datas):
       f.write(str(car_id_data) + "," + str(time_data) + "," + str(orig_pos_data) + "," + str(dest_pos_data) + "\n")
+  
+  with open(os.path.join(save_dir,"experience_" + str(epsilon) + ".txt"), "w") as f:
+    for car in cars_list:
+      for i in range(23):
+        for j in car.experience[i]:
+          for index, experience in j.items():
+            f.write(str(index) + str(experience) + "\n")
 
-  for car in cars_list:
-    print(car.experience)
+
   
 
 
