@@ -452,14 +452,12 @@ def animate(time):
                       tmp_reward = 0
                   else:
                     tmp_reward = 0
-                else:
-                  tmp_reward = 0
 
-                tmp_reward_per_step = experience["reward per step"] + tmp_reward
-                #print("#", experience["reward per step"], tmp_reward)
-                if tmp_reward_per_step > max_reward_per_step:
-                  max_reward_per_step = tmp_reward_per_step
-                  max_index = index
+                  tmp_reward_per_step = experience["reward per step"] + tmp_reward
+                  #print("#", experience["reward per step"], tmp_reward)
+                  if tmp_reward_per_step > max_reward_per_step:
+                    max_reward_per_step = tmp_reward_per_step
+                    max_index = index
 
               #print(max_index, max_reward_per_step)
 
