@@ -2,6 +2,8 @@
 # coding: utf-8
 import numpy as np
 import sys
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 
@@ -24,7 +26,7 @@ time_to_analyze = 30000
 #infilename = "analyze_rg-cars70-div40-epslion0.8.csv"
 #infilename = "analyze_rg-cars70-div40-epslion0.0.csv"
 #infilename = "analyze_rg-cars70-div40-epslion0.05.csv"
-infilename = "destination_coordinates_data0.2.txt"
+infilename = "destination_coordinates_data0.8.txt"
 infile = open(infilename, "r")
 
 for line in infile:
