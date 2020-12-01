@@ -432,7 +432,7 @@ def animate(time):
           else: #活用
             max_reward_per_step = -float("inf")
             max_index = None
-            if len(car.experience) == 0: #過去の経験がない場合はランダムで選ぶ
+            if len(car.experience[index_time]) == 0: #過去の経験がない場合はランダムで選ぶ
               dest_node_id = choose_dest_node_at_random()
             else:
               for i in car.experience[index_time]:
@@ -501,10 +501,12 @@ def animate(time):
       dest_pos_datas.append(dest_pos)
 
       moving_distance = dist_on_sphere(orig_pos, dest_pos)
-      car.experience[(index_x, index_y)]["reward"] -= moving_distance / 10 # 10km/L 1L/1$
+      for i in car.experience[index_time]:
+        if ((index_x, index_y) in i.keys()):
+          i[(index_x, index_y)]["reward"] -= moving_distance / 10 # 10km/L 1L/1$
+          i[(index_x, index_y)]["count"] += 1
+          break
       car.total_reward -= moving_distance / 10
-      
-      car.experience[(index_x, index_y)]["count"] += 1
 
       # create new car
       new_car = Car(orig_node_id, dest_node_id, shortest_path, num_of_division)
