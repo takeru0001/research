@@ -25,6 +25,7 @@ from lane import Lane
 from road_segment import RoadSegment
 from ride_prob import get_ride_prob_and_reward
 import output
+import os
 
 earth_rad = 6378.137
 
@@ -432,7 +433,7 @@ def animate(time):
           else: #活用
             max_reward_per_step = -float("inf")
             max_index = None
-            if len(car.experience) == 0: #過去の経験がない場合はランダムで選ぶ
+            if len(car.experience[index_time]) == 0: #過去の経験がない場合はランダムで選ぶ
               dest_node_id = choose_dest_node_at_random()
             else:
               for i in car.experience[index_time]:
@@ -501,10 +502,12 @@ def animate(time):
       dest_pos_datas.append(dest_pos)
 
       moving_distance = dist_on_sphere(orig_pos, dest_pos)
-      car.experience[(index_x, index_y)]["reward"] -= moving_distance / 10 # 10km/L 1L/1$
+      for i in car.experience[index_time]:
+        if ((index_x, index_y) in i.keys()):
+          i[(index_x, index_y)]["reward"] -= moving_distance / 10 # 10km/L 1L/1$
+          i[(index_x, index_y)]["count"] += 1
+          break
       car.total_reward -= moving_distance / 10
-      
-      car.experience[(index_x, index_y)]["count"] += 1
 
       # create new car
       new_car = Car(orig_node_id, dest_node_id, shortest_path, num_of_division)
@@ -662,27 +665,32 @@ if __name__ == "__main__":
   car_id_datas = []
   time_datas = []
 
-  ani = FuncAnimation(fig, animate, frames=range(100000), init_func=init, blit=True, interval= 50)
+  ani = FuncAnimation(fig, animate, frames=range(150000), init_func=init, blit=True, interval= 50)
   ani.save(str(epsilon) + "sfc-small.mp4", writer="ffmpeg")
 
-  output.reward(total_rewards, epsilon)
-  output.heatmap(cars_list, num_of_division, epsilon)
+  save_dir = "EntireSanFrancisco_" + str(epsilon) + "_"+ str(datetime.date.today())
+  os.makedirs(save_dir, exist_ok=True)
 
-  with open("total_reward_" + str(epsilon) + ".txt", "w") as f:
+  output.reward(total_rewards, epsilon, save_dir)
+  output.heatmap(cars_list, num_of_division, epsilon, save_dir)
+  print(car.experience)
+
+  with open(os.path.join(save_dir, "total_reward_" + str(epsilon) + ".txt"), "w") as f:
     for reward in total_rewards:
       f.write(str(reward) + "\n")
-  
-  with open("experience_" + str(epsilon) + ".txt", "w") as f:
-    for car in cars_list:
-      for index, experience in car.experience.items():
-        f.write(str(index) + str(experience) + "\n")
 
-  with open("destination_coordinates_data" + str(epsilon) + ".txt", "w") as f:
+  with open(os.path.join(save_dir,"destination_coordinates_data" + str(epsilon) + ".txt"), "w") as f:
     for car_id_data, time_data, orig_pos_data, dest_pos_data in zip(car_id_datas, time_datas, orig_pos_datas, dest_pos_datas):
       f.write(str(car_id_data) + "," + str(time_data) + "," + str(orig_pos_data) + "," + str(dest_pos_data) + "\n")
+  
+  with open(os.path.join(save_dir,"experience_" + str(epsilon) + ".txt"), "w") as f:
+    for car in cars_list:
+      for i in range(23):
+        for j in car.experience[i]:
+          for index, experience in j.items():
+            f.write(str(index) + str(experience) + "\n")
 
-  for car in cars_list:
-    print(car.experience)
+
   
 
 
