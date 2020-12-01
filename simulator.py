@@ -25,6 +25,7 @@ from lane import Lane
 from road_segment import RoadSegment
 from ride_prob import get_ride_prob_and_reward
 import output
+import os
 
 earth_rad = 6378.137
 
