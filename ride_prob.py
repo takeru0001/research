@@ -29,6 +29,14 @@ def get_filepath_of_taxies(infilename):
             infilename_list.append(filepath)
     return infilename_list
 
+def get_filepath_of_selected_taxies(infilename):
+    infilename_list = []
+    with open(infilename,"r") as f:
+        for line in f:
+            file_name = line.split('\n')
+            infilename_list.append(file_name[0])
+    return infilename_list
+
 
 def extract_ride_point_reward(infilename_list):
     ride_points = []
