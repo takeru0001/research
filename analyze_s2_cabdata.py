@@ -19,6 +19,13 @@ with open(filelist,"r") as f:
     filepath = "./cabspottingdata/" + "new_" + line[1] + ".txt"
     infilename_list.append(filepath)
 
+# filename = "./cabspottingdata_returner/_cabs.txt"
+# infilename_list = []
+# with open(filename,"r") as f:
+#   for line in f:
+#     file_name = line.split('\n')
+#     infilename_list.append(file_name[0])
+
 if not os.path.exists("./cabspottingdata_returner"):
   os.makedirs("cabspottingdata_returner")
 
@@ -81,6 +88,7 @@ for infilename in infilename_list:
 
     s2 = 0
     s2 = R_g2/R_g
+    # print(s2)
 
     if(s2 > 0.9):
       convert_file_name = infilename.split('/')
