@@ -6,7 +6,7 @@ import random
 class Car:
   def __init__(self, orig_node_id, dest_node_id, shortest_path, num_of_division):
     self.orig_node_id  = orig_node_id
-    self.experience = [[] for i in range(24)]
+    self.experience = [{} for i in range(24)]
     """
     car.experience[(index_x, index_y)] = {
       "reward": 0,

@@ -5,14 +5,13 @@ import os
 def heatmap(cars_list, num_of_division, e, save_dir):
     total_of_reward_step_list = [[{"reward":0, "step":0} for i in range(num_of_division)] for j in range(num_of_division)]
     for car in cars_list:
-        for i in car.experience:
-            for j in i:
-                for key, experience in j.items():
-                    index_x, index_y = key
-                    reward = experience["reward"]
-                    step = experience["step"]
-                    total_of_reward_step_list[index_y][index_x]["reward"] += reward
-                    total_of_reward_step_list[index_y][index_x]["step"] += step
+        for i in range(24):
+            for key, experience in car.experience[i].items():
+                index_x, index_y = key
+                reward = experience["reward"]
+                step = experience["step"]
+                total_of_reward_step_list[index_y][index_x]["reward"] += reward
+                total_of_reward_step_list[index_y][index_x]["step"] += step
 
     evaluation_value_list = [[0 for i in range(num_of_division)] for j in range(num_of_division)]
     for i in range(num_of_division):
