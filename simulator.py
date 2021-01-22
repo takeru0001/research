@@ -421,29 +421,28 @@ def animate(time):
             if len(car.experience[index_time]) == 0: #過去の経験がない場合はランダムで選ぶ
               dest_node_id = choose_dest_node_at_random()
             else:
-              for i in car.experience[index_time]:
-                for index, experience in i.items():
-                  x_diff = abs(index_x - index[0])
-                  y_diff = abs(index_y - index[1])
-                  distance = np.sqrt((x_diff * X) ** 2 + (y_diff * Y) ** 2) #現在地から仮の目的地への距離
-                  #print("distance", distance)
-                  tmp_reward = -(distance / 10) #仮の目的地への移動コスト
-                  if experience["count"] != 0:
-                    step_per_count = experience["step"] / experience["count"]
-                    #count_per_step = experience["count"] / experience["step"]
-                    if step_per_count != 0: #count_per_step != 0:
-                      tmp_reward /= step_per_count
-                      #tmp_reward /= count_per_step #1stepあたりのrewardにかかる移動コスト
-                    else:
-                      tmp_reward = 0
+              for index, experience in car.experience[index_time].items():
+                x_diff = abs(index_x - index[0])
+                y_diff = abs(index_y - index[1])
+                distance = np.sqrt((x_diff * X) ** 2 + (y_diff * Y) ** 2) #現在地から仮の目的地への距離
+                #print("distance", distance)
+                tmp_reward = -(distance / 10) #仮の目的地への移動コスト
+                if experience["count"] != 0:
+                  step_per_count = experience["step"] / experience["count"]
+                  #count_per_step = experience["count"] / experience["step"]
+                  if step_per_count != 0: #count_per_step != 0:
+                    tmp_reward /= step_per_count
+                    #tmp_reward /= count_per_step #1stepあたりのrewardにかかる移動コスト
                   else:
                     tmp_reward = 0
+                else:
+                  tmp_reward = 0
 
-                  tmp_reward_per_step = experience["reward per step"] + tmp_reward
-                  #print("#", experience["reward per step"], tmp_reward)
-                  if tmp_reward_per_step > max_reward_per_step:
-                    max_reward_per_step = tmp_reward_per_step
-                    max_index = index
+                tmp_reward_per_step = experience["reward per step"] + tmp_reward
+                #print("#", experience["reward per step"], tmp_reward)
+                if tmp_reward_per_step > max_reward_per_step:
+                  max_reward_per_step = tmp_reward_per_step
+                  max_index = index
 
               #print(max_index, max_reward_per_step)
 
