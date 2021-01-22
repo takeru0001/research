@@ -313,7 +313,7 @@ def animate(time):
     print("animation step: " + str(animation_count), datetime.datetime.now())
 
   global index_time 
-  if animation_count % 2880 == 0: #1hあたりのstep数が1000の場合
+  if animation_count % 2880 == 0:
     index_time += 1
     if index_time > 23:
       index_time = 0
