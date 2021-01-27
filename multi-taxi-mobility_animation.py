@@ -113,13 +113,16 @@ else:
   x0, y0 = to_pixels(pos0[0], pos0[1], z, box_tile)
   x1, y1 = to_pixels(pos1[0], pos1[1], z, box_tile)
 
-filelist = "./cabspottingdata/_cabs.txt"
+filelist = "./cabspottingdata_returner/_cabs.txt"
 infilename_list = []
 with open(filelist,"r") as f:
+  # for line in f:
+  #   line = line.rstrip().split('"')
+  #   filepath = "./cabspottingdata/" + "new_" + line[1] + ".txt"
+  #   infilename_list.append(filepath)
   for line in f:
-    line = line.rstrip().split('"')
-    filepath = "./cabspottingdata/" + "new_" + line[1] + ".txt"
-    infilename_list.append(filepath)
+    file_name = line.split('\n')
+    infilename_list.append(file_name[0])
 
 if not os.path.exists("./taxi"):
   os.makedirs("taxi")
