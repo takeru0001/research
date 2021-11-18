@@ -1,8 +1,6 @@
 """Smopy: OpenStreetMap image tiles in Python.
-
 Give a box in geographical coordinates (latitude/longitude) and a zoom level,
 Smopy returns an OpenStreetMap tile image!
-
 """
 # -----------------------------------------------------------------------------
 # Imports
@@ -21,7 +19,7 @@ from IPython.display import display_png
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 
 
 # -----------------------------------------------------------------------------
@@ -34,9 +32,7 @@ def get_url(x, y, z, tileserver):
 
 def fetch_tile(x, y, z, tileserver):
     """Fetch tile (x, y) at zoom level z from OpenStreetMap's servers.
-
     Return a PIL image.
-
     """
 
     url = get_url(x, y, z, tileserver)
@@ -86,12 +82,9 @@ def get_box_size(box):
 
 def determine_scale(latitude, z):
     """Determine the amount of meters per pixel
-
     :param latitude: latitude in radians
     :param z: zoom level
-
     Source: http://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Resolution_and_Scale
-
     """
     # For zoom = 0 at equator
     meter_per_pixel = 156543.03
@@ -124,12 +117,9 @@ def image_to_numpy(img):
 # -----------------------------------------------------------------------------
 def deg2num(latitude, longitude, zoom, do_round=True):
     """Convert from latitude and longitude to tile numbers.
-
     If do_round is True, return integers. Otherwise, return floating point
     values.
-
     Source: http://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Python
-
     """
     lat_rad = np.radians(latitude)
     n = 2.0 ** zoom
@@ -154,9 +144,7 @@ def deg2num(latitude, longitude, zoom, do_round=True):
 
 def num2deg(xtile, ytile, zoom):
     """Convert from x and y tile numbers to latitude and longitude.
-
     Source: http://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Python
-
     """
     n = 2.0 ** zoom
     longitude = xtile / n * 360. - 180.
@@ -168,9 +156,7 @@ def num2deg(xtile, ytile, zoom):
 def get_tile_box(box_latlon, z):
     """Convert a box in geographical coordinates to a box in
     tile coordinates (integers), at a given zoom level.
-
     box_latlon is lat0, lon0, lat1, lon1.
-
     """
     lat0, lon0, lat1, lon1 = box_latlon
     x0, y0 = deg2num(lat0, lon0, z)
@@ -187,13 +173,11 @@ def get_tile_coords(lat, lon, z):
 def _box(*args):
     """Return a tuple (lat0, lon0, lat1, lon1) from a coordinate box that
     can be specified in multiple ways:
-
     A. box((lat0, lon0))  # nargs = 1
     B. box((lat0, lon0, lat1, lon1))  # nargs = 1
     C. box(lat0, lon0)  # nargs = 2
     D. box((lat0, lon0), (lat1, lon1))  # nargs = 2
     E. box(lat0, lon0, lat1, lon1)  # nargs = 4
-
     """
     nargs = len(args)
     assert nargs in (1, 2, 4)
@@ -236,8 +220,12 @@ def extend_box(box_latlon, margin=.1):
     lon0, lon1 = min(lon0, lon1), max(lon0, lon1)
     dlat = max((lat1 - lat0) * margin, 0.0005)
     dlon = max((lon1 - lon0) * margin, 0.0005 / np.cos(np.radians(lat0)))
-    return (lat0 - dlat, lon0 - dlon,
-            lat1 + dlat, lon1 + dlon)
+    return (
+        max(lat0 - dlat, -80),
+        max(lon0 - dlon, -180),
+        min(lat1 + dlat, 80),
+        min(lon1 + dlon, 180),
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -246,46 +234,34 @@ def extend_box(box_latlon, margin=.1):
 class Map(object):
 
     """Represent an OpenStreetMap image.
-
     Initialized as:
-
         map = Map((lat_min, lon_min, lat_max, lon_max), z=z, tileserver="")
-
     where the first argument is a box in geographical coordinates, and z
     is the zoom level (from minimum zoom 1 to maximum zoom 19).
-
     Methods:
-
     * To create a matplotlib plot: `ax = map.show_mpl()`.
-
     * To save a PNG: `map.save_png(filename)`.
-
     Tested tileservers:
-
     * https://tile.openstreetmap.org/{z}/{x}/{y}.png [default]
-
     * http://a.tile.stamen.com/toner/{z}/{x}/{y}.png [stamen toner (b/w high contrast)]
-
     * http://c.tile.stamen.com/watercolor/{z}/{x}/{y}.png [watercolor look]
-
     * https://tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png [grayscale]
-
-
     """
 
     def __init__(self, *args, **kwargs):
         """Create and fetch the map with a given box in geographical
         coordinates.
-
         Can be called with `Map(box, z=z)` or `Map(lat, lon, z=z, tileserver="https://tile.openstreetmap.org/{z}/{x}/{y}.png")`.
-
         """
         z = kwargs.get('z', 18)
         margin = kwargs.get('margin', .05)
 
         self.tileserver = kwargs.get('tileserver', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png')
+        if self.tileserver == '':
+            self.tileserver = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'    # fixes situation where some sends an empty string for tileserver
         self.tilesize = kwargs.get('tilesize', 256)
         self.maxtiles = kwargs.get('maxtiles', 16)
+        self.verbose = kwargs.get('verbose', True)    # set this to false for suppressing print() outputs
 
         box = _box(*args)
         if margin is not None:
@@ -294,8 +270,9 @@ class Map(object):
 
         self.z = self.get_allowed_zoom(z)
         if z > self.z:
-            print('Lowered zoom level to keep map size reasonable. '
-                  '(z = %d)' % self.z)
+            if self.verbose:
+                print('Lowered zoom level to keep map size reasonable. '
+                      '(z = %d)' % self.z)
         else:
             self.z = z
         self.box_tile = get_tile_box(self.box, self.z)
@@ -341,7 +318,6 @@ class Map(object):
 
     def show_mpl(self, ax=None, figsize=None, dpi=None, **imshow_kwargs):
         """Show the image in matplotlib.
-
         Parameters
         ----------
         ax : matplotlib axes, optional

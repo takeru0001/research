@@ -87,7 +87,8 @@ def extract_ride_point_reward(infilename_list):
 
                     reward, orig, dist = reward_calculation(coordinates_in_ride)
                     elapsed_time = arrival_time - departure_time
-                    if reward is not None and 2400 > elapsed_time > 120 and reward < 40: #simulationを行うエリアの大きさによって変える必要有
+                    if reward is not None:
+                        #simulationを行うエリアの大きさによって変える必要有
                         reward_list.append([reward, orig, dist, elapsed_time]) 
                     else:
                         #print("error 2min")
@@ -152,16 +153,20 @@ def find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, r
 def find_ride_prob(num_of_division, ride_num_each_area):
     ride_prob = [[[0 for i in range(num_of_division)] for j in range(num_of_division)] for k in range(24)]
 
+    max_ride_num = 0
     for k in range(24):
-        max_ride_num = 0
+        # max_ride_num = 0
         for i in range(num_of_division):
             for j in range(num_of_division):
                 if max_ride_num < ride_num_each_area[k][i][j]:
                     max_ride_num = ride_num_each_area[k][i][j]
-        prob_increase_per_a_ride = 1 / max_ride_num
+    prob_increase_per_a_ride = 1 / max_ride_num
+    print(max_ride_num)
+    print(prob_increase_per_a_ride)
         #prob_increase_per_a_ride = 0.8 / max_ride_num
 
 
+    for k in range(24):
         for i in range(num_of_division):
             for j in range(num_of_division):
                 ride_prob[k][i][j] = ride_num_each_area[k][i][j] * prob_increase_per_a_ride
@@ -170,11 +175,11 @@ def find_ride_prob(num_of_division, ride_num_each_area):
 
 
 def get_ride_prob_and_reward(filename_of_xml, num_of_division):
-    file_of_taxi = "./cabspottingdata/_cabs.txt"
+    file_of_taxi = "./cabspottingdata_returner_airport/_cabs.txt"
 
     root = read_parse_netxml(filename_of_xml)
     _, origBoundary = get_boundary(root)
-    infilename_taxies = get_filepath_of_taxies(file_of_taxi)
+    infilename_taxies = get_filepath_of_selected_taxies(file_of_taxi)
     ride_points, reward_list = extract_ride_point_reward(infilename_taxies)
     ride_num_each_area, reward_each_area = find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, reward_list)
     ride_prob = find_ride_prob(num_of_division, ride_num_each_area)
@@ -183,7 +188,8 @@ def get_ride_prob_and_reward(filename_of_xml, num_of_division):
 
 def main():
     filename_of_xml = "EntireSanFrancisco.net.xml"
-    file_of_taxi = "./cabspottingdata/_cabs.txt"
+    # filename_of_xml = "SanFrancisco2.net.xml"
+    file_of_taxi = "./cabspottingdata_returner/_cabs.txt"
 
     #1辺を何分割するか
     num_of_division = int(input("num_of_division: "))
@@ -193,7 +199,7 @@ def main():
     _, origBoundary = get_boundary(root)
     print("///got boundary")
 
-    infilename_taxies = get_filepath_of_taxies(file_of_taxi)
+    infilename_taxies = get_filepath_of_selected_taxies(file_of_taxi)
     #infilename_taxies = ["./cabspottingdata/" + "tmp" + ".txt"]
     print("///got filepath of taxies")
     ride_points, reward_list = extract_ride_point_reward(infilename_taxies)

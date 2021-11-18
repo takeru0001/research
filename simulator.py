@@ -466,10 +466,7 @@ def animate(time):
           dest_node_id = choose_dest_node_at_random()
           continue
         if ride_flag:
-          for i in car.experience[index_time]:
-            if ((index_x, index_y) in i.keys()):
-              i[(index_x, index_y)]["reward"] += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
-              break
+          car.experience[index_time][(index_x, index_y)]["reward"] += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
           car.total_reward += reward_each_area[index_y][index_x][passenger_num_in_the_area]["reward"]
           #ride_flag = False
           #print("get reward")
@@ -486,12 +483,9 @@ def animate(time):
       dest_pos_datas.append(dest_pos)
 
       moving_distance = dist_on_sphere(orig_pos, dest_pos)
-      for i in car.experience[index_time]:
-        if ((index_x, index_y) in i.keys()):
-          i[(index_x, index_y)]["reward"] -= moving_distance / 10 # 10km/L 1L/1$
-          i[(index_x, index_y)]["count"] += 1
-          break
+      car.experience[index_time][(index_x, index_y)]["reward"] -= moving_distance / 10 # 10km/L 1L/1$
       car.total_reward -= moving_distance / 10
+      car.experience[index_time][(index_x, index_y)]["count"] += 1
 
       # create new car
       new_car = Car(orig_node_id, dest_node_id, shortest_path, num_of_division)
@@ -533,6 +527,16 @@ def animate(time):
   dest.set_data(dest_xdata, dest_ydata)
   dest_ride.set_data(dest_xdata_ride, dest_ydata_ride)
   title.set_text("Simulation step: "+str(time)+";  # of cars: "+str(len(cars_list)))
+
+  if animation_count % 100000 == 0:
+    save_dir = "EntireSanFrancisco_" + str(epsilon) + "_" + str(animation_count) + "_" + str(datetime.date.today())
+    os.makedirs(save_dir, exist_ok=True)
+
+    with open(os.path.join(save_dir,"destination_coordinates_data" + str(epsilon) + ".txt"), "w") as f:
+      for car_id_data, time_data, orig_pos_data, dest_pos_data in zip(car_id_datas, time_datas, orig_pos_datas, dest_pos_datas):
+        f.write(str(car_id_data) + "," + str(time_data) + "," + str(orig_pos_data) + "," + str(dest_pos_data) + "\n")
+    output.reward(total_rewards, epsilon, save_dir)
+    output.heatmap(cars_list, num_of_division, epsilon, save_dir)
 
   return line, title, 
 
@@ -669,10 +673,10 @@ if __name__ == "__main__":
   
   with open(os.path.join(save_dir,"experience_" + str(epsilon) + ".txt"), "w") as f:
     for car in cars_list:
-      for i in range(23):
-        for j in car.experience[i]:
-          for index, experience in j.items():
-            f.write(str(index) + str(experience) + "\n")
+      f.write("\n" + str(car) + "\n")
+      for i in range(24):
+        for index, experience in car.experience[i].items():
+          f.write(str(index) + str(experience) + "\n")
 
 
   
