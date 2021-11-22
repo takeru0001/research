@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from matplotlib.animation import FuncAnimation
+from matplotlib.animation import PillowWriter
 import math
 from math import sin, cos, acos, radians
 #from numba.decorators import jit, njit
@@ -32,16 +33,16 @@ earth_rad = 6378.137
 # simulation settings
 #infilename = "sfc_main.net.xml"
 #infilename = "SanFrancisco2.net.xml"
-infilename = "EntireSanFrancisco.net.xml"
-#infilename = "sfc_small.net.xml"
+# infilename = "EntireSanFrancisco.net.xml"
+infilename = "sfc_small.net.xml"
 #infilename = "sfc.net.xml"
 
 
 png_infilename = "sanfrancisco.png" 
 
-#filename_geojson = "sfc_small.geojson"
+filename_geojson = "sfc_small.geojson"
 #filename_geojson = "sfc_main.geojson"
-filename_geojson = "EntireSanFrancisco.geojson"
+# filename_geojson = "EntireSanFrancisco.geojson"
 #filename_geojson = "SanFrancisco2.geojson"
 #filename_geojson = "sfc.geojson"
 
@@ -653,8 +654,8 @@ if __name__ == "__main__":
   car_id_datas = []
   time_datas = []
 
-  ani = FuncAnimation(fig, animate, frames=range(150000), init_func=init, blit=True, interval= 50)
-  ani.save(str(epsilon) + "sfc-small.mp4", writer="ffmpeg")
+  ani = FuncAnimation(fig, animate, frames=range(500), init_func=init, blit=True, interval= 50)
+  ani.save(str(epsilon) + "sfc-small.gif", writer=PillowWriter())
 
   save_dir = "EntireSanFrancisco_" + str(epsilon) + "_"+ str(datetime.date.today())
   os.makedirs(save_dir, exist_ok=True)

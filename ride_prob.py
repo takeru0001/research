@@ -25,7 +25,7 @@ def get_filepath_of_taxies(infilename):
     with open(infilename,"r") as f:
         for line in f:
             line = line.rstrip().split('"')
-            filepath = "./cabspottingdata/" + "new_" + line[1] + ".txt"
+            filepath = "./cabspottingdata_returner/" + "new_" + line[1] + ".txt"
             infilename_list.append(filepath)
     return infilename_list
 
@@ -175,11 +175,11 @@ def find_ride_prob(num_of_division, ride_num_each_area):
 
 
 def get_ride_prob_and_reward(filename_of_xml, num_of_division):
-    file_of_taxi = "./cabspottingdata/_cabs.txt"
+    file_of_taxi = "./cabspottingdata_returner/_cabs.txt"
 
     root = read_parse_netxml(filename_of_xml)
     _, origBoundary = get_boundary(root)
-    infilename_taxies = get_filepath_of_taxies(file_of_taxi)
+    infilename_taxies = get_filepath_of_selected_taxies(file_of_taxi)
     ride_points, reward_list = extract_ride_point_reward(infilename_taxies)
     ride_num_each_area, reward_each_area = find_ride_num_reward_each_area(num_of_division, origBoundary, ride_points, reward_list)
     ride_prob = find_ride_prob(num_of_division, ride_num_each_area)
