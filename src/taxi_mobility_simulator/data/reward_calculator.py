@@ -114,7 +114,7 @@ class RewardCalculator:
             if duration_seconds > 0:
                 avg_speed = calculate_speed(duration_seconds, total_distance)
                 if avg_speed > self.max_speed_kmh:
-                    logger.warning(f"Unrealistic speed detected: {avg_speed:.2f} km/h")
+                    # logger.warning(f"Unrealistic speed detected: {avg_speed:.2f} km/h")
                     return None, None, None
 
             # Calculate fare

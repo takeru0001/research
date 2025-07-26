@@ -1,9 +1,14 @@
-import seaborn as sns
-import matplotlib.pyplot as plt
 import os
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
 def heatmap(cars_list, num_of_division, e, save_dir):
-    total_of_reward_step_list = [[{"reward":0, "step":0} for i in range(num_of_division)] for j in range(num_of_division)]
+    total_of_reward_step_list = [
+        [{"reward": 0, "step": 0} for i in range(num_of_division)]
+        for j in range(num_of_division)
+    ]
     for car in cars_list:
         for i in range(24):
             for key, experience in car.experience[i].items():
@@ -13,7 +18,9 @@ def heatmap(cars_list, num_of_division, e, save_dir):
                 total_of_reward_step_list[index_y][index_x]["reward"] += reward
                 total_of_reward_step_list[index_y][index_x]["step"] += step
 
-    evaluation_value_list = [[0 for i in range(num_of_division)] for j in range(num_of_division)]
+    evaluation_value_list = [
+        [0 for i in range(num_of_division)] for j in range(num_of_division)
+    ]
     for i in range(num_of_division):
         for j in range(num_of_division):
             reward = total_of_reward_step_list[i][j]["reward"]
@@ -22,7 +29,7 @@ def heatmap(cars_list, num_of_division, e, save_dir):
                 evaluation_value_list[i][j] = 0
             else:
                 evaluation_value_list[i][j] = reward / step
-    
+
     plt.figure()
     sns.heatmap(evaluation_value_list, cmap="Blues")
     plt.xticks(color="None")
@@ -30,6 +37,7 @@ def heatmap(cars_list, num_of_division, e, save_dir):
     plt.tick_params(length=0)
     plt.savefig(os.path.join(save_dir, str(e) + "Evaluation_value_each_area.png"))
     plt.close("all")
+
 
 def reward(total_rewards, e, save_dir):
     reward_change = []

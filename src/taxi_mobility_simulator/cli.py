@@ -189,7 +189,67 @@ def analyze_data(
         raise click.ClickException(f"Data analysis failed: {e}")
 
 
-# Add the run_simulation command to the main group
+@main.command()
+@click.option(
+    "--cache-type",
+    type=click.Choice(["network", "probability", "all"]),
+    default="all",
+    help="Type of cache to clear",
+)
+def clear_cache(cache_type: str) -> None:
+    """Clear simulation cache files."""
+    setup_logging()
+    logger = logging.getLogger(__name__)
+
+    try:
+        from .utils.network_cache import SimulationCache
+
+        cache = SimulationCache()
+
+        if cache_type == "all":
+            cache.clear_cache()
+        else:
+            cache.clear_cache(cache_type)
+
+        logger.info("Cache cleared successfully")
+
+    except Exception as e:
+        logger.error(f"Failed to clear cache: {e}")
+        raise click.ClickException(f"Failed to clear cache: {e}")
+
+
+@main.command()
+def cache_info() -> None:
+    """Show information about simulation cache."""
+    setup_logging()
+    logger = logging.getLogger(__name__)
+
+    try:
+        from .utils.network_cache import SimulationCache
+
+        cache = SimulationCache()
+        info = cache.get_cache_info()
+
+        click.echo("\n=== Cache Information ===")
+        click.echo(f"Cache directory: {info.get('cache_dir', 'N/A')}")
+        click.echo(f"Total files: {info.get('total_files', 0)}")
+        click.echo(f"Total size: {info.get('total_size_mb', 0):.2f} MB")
+
+        cache_types = info.get("cache_types", {})
+        if cache_types:
+            click.echo("\nCache types:")
+            for cache_type, data in cache_types.items():
+                size_mb = data["size"] / (1024 * 1024)
+                click.echo(f"  {cache_type}: {data['count']} files, {size_mb:.2f} MB")
+
+        logger.info("Cache information displayed")
+
+    except Exception as e:
+        logger.error(f"Failed to get cache info: {e}")
+        raise click.ClickException(f"Failed to get cache info: {e}")
+
+
+# Add the commands to the main group
 main.add_command(run_simulation, name="run")
 
 

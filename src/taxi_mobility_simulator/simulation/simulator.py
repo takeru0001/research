@@ -1,14 +1,17 @@
 """Main taxi mobility simulator."""
 
 import gc
+import hashlib
 import json
 import logging
+import pickle
 import random
+from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # noqa: N817
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -84,27 +87,202 @@ class TaxiSimulator:
             logger.error(f"Simulation failed: {e}")
             raise
 
+    def _generate_cache_key(self, prefix: str, inputs: list[str]) -> str:
+        """Generate a cache key based on input files and parameters."""
+        hasher = hashlib.md5()
+
+        for input_item in inputs:
+            if isinstance(input_item, str | Path):
+                input_path = Path(input_item)
+                if input_path.exists():
+                    # Add file modification time and size
+                    stat = input_path.stat()
+                    hasher.update(
+                        f"{input_path}:{stat.st_mtime}:{stat.st_size}".encode()
+                    )
+                else:
+                    # For string parameters
+                    hasher.update(str(input_item).encode())
+            else:
+                hasher.update(str(input_item).encode())
+
+        return hasher.hexdigest()[:12]  # Use first 12 characters
+
+    def _is_cache_valid(self, cache_file: Path, source_files: list[Path]) -> bool:
+        """Check if cached data is still valid."""
+        try:
+            if not cache_file.exists():
+                return False
+
+            cache_mtime = cache_file.stat().st_mtime
+
+            # Check if any source file is newer than cache
+            for source_file in source_files:
+                if source_file.exists() and source_file.stat().st_mtime > cache_mtime:
+                    return False
+
+            return True
+        except (OSError, AttributeError):
+            return False
+
+    def _load_cached_network(self, cache_file: Path) -> None:
+        """Load cached network data."""
+        try:
+            with cache_file.open("rb") as f:
+                cached_data = pickle.load(f)
+
+            self.road_graph = cached_data["road_graph"]
+            self.node_mappings = cached_data["node_mappings"]
+            self.smopy_map = cached_data["smopy_map"]
+            self.map_bounds = cached_data["map_bounds"]
+            self.area_width_km = cached_data["area_width_km"]
+            self.area_height_km = cached_data["area_height_km"]
+
+            # Initialize edges_cars_dict
+            self.edges_cars_dict = {edge: [] for edge in self.road_graph.edges()}
+
+            logger.info(
+                f"Loaded cached network: {self.road_graph.number_of_nodes()} nodes, {self.road_graph.number_of_edges()} edges"
+            )
+
+        except Exception as e:
+            logger.warning(f"Failed to load cached network: {e}")
+            raise
+
+    def _cache_network_data(self, cache_file: Path) -> None:
+        """Cache network data for future use."""
+        try:
+            cache_data = {
+                "road_graph": self.road_graph,
+                "node_mappings": self.node_mappings,
+                "smopy_map": self.smopy_map,
+                "map_bounds": self.map_bounds,
+                "area_width_km": self.area_width_km,
+                "area_height_km": self.area_height_km,
+                "cache_version": "1.0",
+                "settings_hash": self._generate_cache_key(
+                    "settings",
+                    [
+                        str(self.settings.num_of_division),
+                        str(self.settings.map_zoom_level),
+                    ],
+                ),
+            }
+
+            cache_file.parent.mkdir(parents=True, exist_ok=True)
+            with cache_file.open("wb") as f:
+                pickle.dump(cache_data, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+            logger.info(f"Cached network data to {cache_file}")
+
+        except Exception as e:
+            logger.warning(f"Failed to cache network data: {e}")
+
+    def _load_cached_probabilities(self, cache_file: Path) -> None:
+        """Load cached probability data."""
+        try:
+            with cache_file.open("rb") as f:
+                cached_data = pickle.load(f)
+
+            self.ride_probabilities = cached_data["ride_probabilities"]
+            self.reward_areas = cached_data["reward_areas"]
+
+            logger.info(f"Loaded cached probability data from {cache_file}")
+
+        except Exception as e:
+            logger.warning(f"Failed to load cached probabilities: {e}")
+            raise
+
+    def _cache_probability_data(self, cache_file: Path) -> None:
+        """Cache probability data for future use."""
+        try:
+            cache_data = {
+                "ride_probabilities": self.ride_probabilities,
+                "reward_areas": self.reward_areas,
+                "cache_version": "1.0",
+                "settings_hash": self._generate_cache_key(
+                    "prob_settings", [str(self.settings.num_of_division)]
+                ),
+            }
+
+            cache_file.parent.mkdir(parents=True, exist_ok=True)
+            with cache_file.open("wb") as f:
+                pickle.dump(cache_data, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+            logger.info(f"Cached probability data to {cache_file}")
+
+        except Exception as e:
+            logger.warning(f"Failed to cache probability data: {e}")
+
     def _setup_simulation(self) -> None:
         """Set up all simulation components."""
         logger.info("Setting up simulation components")
 
-        # Load map and boundaries
-        self.smopy_map, self.map_bounds = self._load_map()
+        # Create cache directory
+        cache_dir = Path("cache")
+        cache_dir.mkdir(exist_ok=True)
 
-        # Calculate area dimensions
-        self._calculate_area_dimensions()
+        # Generate cache keys
+        network_cache_key = self._generate_cache_key(
+            "network",
+            [
+                self.settings.network_file,
+                self.settings.geojson_file,
+                str(self.settings.num_of_division),
+            ],
+        )
 
-        # Load ride probabilities and rewards
-        self.ride_probabilities, self.reward_areas = (
-            self.prob_calculator.calculate_ride_probabilities(
+        probability_cache_key = self._generate_cache_key(
+            "probability",
+            [
+                self.settings.network_file,
+                self.settings.taxi_data_dir,
+                str(self.settings.num_of_division),
+            ],
+        )
+
+        network_cache_file = cache_dir / f"network_{network_cache_key}.pkl"
+        probability_cache_file = cache_dir / f"probability_{probability_cache_key}.pkl"
+
+        # Load or build network data
+        if network_cache_file.exists() and self._is_cache_valid(
+            network_cache_file, [self.settings.network_file, self.settings.geojson_file]
+        ):
+            logger.info("Loading cached network data")
+            self._load_cached_network(network_cache_file)
+        else:
+            logger.info("Building network from scratch")
+            # Load map and boundaries
+            self.smopy_map, self.map_bounds = self._load_map()
+
+            # Calculate area dimensions
+            self._calculate_area_dimensions()
+
+            # Create road network (most expensive operation)
+            self._create_road_network()
+
+            # Cache the network data
+            self._cache_network_data(network_cache_file)
+
+        # Load or build ride probabilities
+        if probability_cache_file.exists() and self._is_cache_valid(
+            probability_cache_file,
+            [self.settings.network_file, self.settings.taxi_data_dir],
+        ):
+            logger.info("Loading cached ride probabilities")
+            self._load_cached_probabilities(probability_cache_file)
+        else:
+            logger.info("Calculating ride probabilities from scratch")
+            (
+                self.ride_probabilities,
+                self.reward_areas,
+            ) = self.prob_calculator.calculate_ride_probabilities(
                 self.settings.network_file,
                 self.settings.taxi_data_dir,
                 self.settings.num_of_division,
             )
-        )
-
-        # Create road network
-        self._create_road_network()
+            # Cache the probability data
+            self._cache_probability_data(probability_cache_file)
 
         # Initialize cars
         self._initialize_cars()
@@ -217,7 +395,24 @@ class TaxiSimulator:
     def _build_network_graph(
         self, root, conv_boundary: list[float], orig_boundary: list[float]
     ) -> tuple[nx.DiGraph, dict]:
-        """Build NetworkX graph from SUMO XML data."""
+        """Build NetworkX graph from SUMO XML data with optimizations."""
+        logger.info("Building network graph with performance optimizations")
+
+        # Pre-calculate conversion factors
+        orig_per_conv_x = abs(orig_boundary[0] - orig_boundary[2]) / abs(
+            conv_boundary[0] - conv_boundary[2]
+        )
+        orig_per_conv_y = abs(orig_boundary[1] - orig_boundary[3]) / abs(
+            conv_boundary[1] - conv_boundary[3]
+        )
+
+        # Calculate area divisions once
+        top, bottom = orig_boundary[3], orig_boundary[1]
+        leftmost, rightmost = orig_boundary[0], orig_boundary[2]
+        x_division_size = abs(leftmost - rightmost) / self.settings.num_of_division
+        y_division_size = abs(top - bottom) / self.settings.num_of_division
+
+        # Use more efficient data structures
         graph = nx.DiGraph()
         node_mappings = {
             "xy_to_id": {},
@@ -227,114 +422,137 @@ class TaxiSimulator:
         }
 
         node_id = 0
+        edges_to_add = []  # Batch edge additions
 
-        # Calculate area divisions
-        top, bottom = orig_boundary[3], orig_boundary[1]
-        leftmost, rightmost = orig_boundary[0], orig_boundary[2]
-        x_division_size = abs(leftmost - rightmost) / self.settings.num_of_division
-        y_division_size = abs(top - bottom) / self.settings.num_of_division
+        # Pre-filter edges to avoid processing non-roadways
+        roadway_edges = [
+            child
+            for child in root
+            if child.tag == "edge" and not self._is_non_roadway(child)
+        ]
 
-        for child in root:
-            if child.tag == "edge" and not self._is_non_roadway(child):
-                for lane_child in child:
-                    if "shape" not in lane_child.attrib:
-                        continue
+        logger.info(f"Processing {len(roadway_edges)} roadway edges")
 
-                    # Parse shape data
-                    shape_points = lane_child.attrib["shape"].split(" ")
-                    node_ids = []
+        for edge_idx, child in enumerate(roadway_edges):
+            if edge_idx % 1000 == 0:
+                logger.debug(f"Processed {edge_idx}/{len(roadway_edges)} edges")
 
-                    for point_str in shape_points:
-                        try:
-                            x, y = map(float, point_str.split(","))
+            for lane_child in child:
+                if "shape" not in lane_child.attrib:
+                    continue
 
-                            # Convert coordinates
-                            lon, lat = self._convert_coordinates(
-                                conv_boundary, orig_boundary, x, y
-                            )
+                # Parse shape data
+                shape_points = lane_child.attrib["shape"].split(" ")
+                node_ids = []
+                speed = float(lane_child.attrib.get("speed", 30.0))
 
-                            # Convert to pixels
-                            px_x, px_y = self.smopy_map.to_pixels(lat, lon)
+                # Process points in batch
+                for point_str in shape_points:
+                    try:
+                        x, y = map(float, point_str.split(","))
 
-                            # Calculate area index
-                            index_x = max(
-                                0,
-                                min(
-                                    int(abs(leftmost - lon) // x_division_size),
-                                    self.settings.num_of_division - 1,
-                                ),
-                            )
-                            index_y = max(
-                                0,
-                                min(
-                                    int(abs(top - lat) // y_division_size),
-                                    self.settings.num_of_division - 1,
-                                ),
-                            )
+                        # Inline coordinate conversion for speed
+                        lon = orig_boundary[0] + (x * orig_per_conv_x)
+                        lat = orig_boundary[1] + (y * orig_per_conv_y)
 
-                            # Add node if not exists
-                            if (px_x, px_y) not in node_mappings["xy_to_id"]:
-                                graph.add_node(node_id, pos=(px_x, px_y))
-                                node_mappings["xy_to_id"][(px_x, px_y)] = node_id
-                                node_mappings["id_to_index"][node_id] = (
-                                    index_x,
-                                    index_y,
-                                )
-                                node_mappings["id_to_coordinate"][node_id] = {
-                                    "longitude": lon,
-                                    "latitude": lat,
-                                }
+                        # Convert to pixels
+                        px_x, px_y = self.smopy_map.to_pixels(lat, lon)
 
-                                # Update index_to_id mapping
-                                if (index_x, index_y) not in node_mappings[
-                                    "index_to_id"
-                                ]:
-                                    node_mappings["index_to_id"][
-                                        (index_x, index_y)
-                                    ] = []
-                                node_mappings["index_to_id"][(index_x, index_y)].append(
-                                    node_id
-                                )
+                        # Round pixel coordinates to reduce duplicate nodes
+                        px_x, px_y = round(px_x, 1), round(px_y, 1)
 
-                                node_ids.append(node_id)
-                                node_id += 1
-                            else:
-                                node_ids.append(node_mappings["xy_to_id"][(px_x, px_y)])
-
-                        except (ValueError, KeyError):
-                            continue
-
-                    # Add edges
-                    speed = float(lane_child.attrib.get("speed", 30.0))
-                    for i in range(len(node_ids) - 1):
-                        start_node = node_ids[i]
-                        end_node = node_ids[i + 1]
-
-                        # Calculate edge weight (distance)
-                        start_pos = graph.nodes[start_node]["pos"]
-                        end_pos = graph.nodes[end_node]["pos"]
-                        weight = np.sqrt(
-                            (end_pos[0] - start_pos[0]) ** 2
-                            + (end_pos[1] - start_pos[1]) ** 2
+                        # Calculate area index with bounds checking
+                        index_x = max(
+                            0,
+                            min(
+                                int(abs(leftmost - lon) // x_division_size),
+                                self.settings.num_of_division - 1,
+                            ),
+                        )
+                        index_y = max(
+                            0,
+                            min(
+                                int(abs(top - lat) // y_division_size),
+                                self.settings.num_of_division - 1,
+                            ),
                         )
 
-                        graph.add_edge(start_node, end_node, weight=weight, speed=speed)
+                        # Add node if not exists
+                        if (px_x, px_y) not in node_mappings["xy_to_id"]:
+                            graph.add_node(node_id, pos=(px_x, px_y))
+                            node_mappings["xy_to_id"][(px_x, px_y)] = node_id
+                            node_mappings["id_to_index"][node_id] = (index_x, index_y)
+                            node_mappings["id_to_coordinate"][node_id] = {
+                                "longitude": lon,
+                                "latitude": lat,
+                            }
+
+                            # Update index_to_id mapping efficiently
+                            if (index_x, index_y) not in node_mappings["index_to_id"]:
+                                node_mappings["index_to_id"][(index_x, index_y)] = []
+                            node_mappings["index_to_id"][(index_x, index_y)].append(
+                                node_id
+                            )
+
+                            node_ids.append(node_id)
+                            node_id += 1
+                        else:
+                            node_ids.append(node_mappings["xy_to_id"][(px_x, px_y)])
+
+                    except (ValueError, KeyError):
+                        continue
+
+                # Batch edge creation
+                for i in range(len(node_ids) - 1):
+                    start_node = node_ids[i]
+                    end_node = node_ids[i + 1]
+
+                    if start_node != end_node:  # Avoid self-loops
+                        edges_to_add.append((start_node, end_node, speed))
+
+        # Add all edges at once for better performance
+        logger.info(f"Adding {len(edges_to_add)} edges to graph")
+        for start_node, end_node, speed in edges_to_add:
+            # Calculate edge weight (distance) only when adding
+            start_pos = graph.nodes[start_node]["pos"]
+            end_pos = graph.nodes[end_node]["pos"]
+            weight = np.sqrt(
+                (end_pos[0] - start_pos[0]) ** 2 + (end_pos[1] - start_pos[1]) ** 2
+            )
+            graph.add_edge(start_node, end_node, weight=weight, speed=speed)
 
         # Extract largest strongly connected component
+        logger.info("Finding largest strongly connected component")
         scc = list(nx.strongly_connected_components(graph))
         if scc:
             largest_scc = max(scc, key=len)
             nodes_to_remove = set(graph.nodes()) - largest_scc
             graph.remove_nodes_from(nodes_to_remove)
 
+            # Clean up node mappings
+            for node in nodes_to_remove:
+                if node in node_mappings["id_to_index"]:
+                    index = node_mappings["id_to_index"][node]
+                    del node_mappings["id_to_index"][node]
+                    if index in node_mappings["index_to_id"]:
+                        node_mappings["index_to_id"][index] = [
+                            n for n in node_mappings["index_to_id"][index] if n != node
+                        ]
+                if node in node_mappings["id_to_coordinate"]:
+                    del node_mappings["id_to_coordinate"][node]
+
             logger.info(f"Removed {len(nodes_to_remove)} nodes not in largest SCC")
 
+        logger.info(
+            f"Final graph: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges"
+        )
         return graph, node_mappings
 
     def _convert_coordinates(
         self, conv_boundary: list[float], orig_boundary: list[float], x: float, y: float
     ) -> tuple[float, float]:
         """Convert SUMO coordinates to lat/lon."""
+        # This method is kept for compatibility but optimized version is inlined in _build_network_graph
         orig_per_conv_x = abs(orig_boundary[0] - orig_boundary[2]) / abs(
             conv_boundary[0] - conv_boundary[2]
         )
@@ -749,7 +967,6 @@ class TaxiSimulator:
             and current_x < len(self.reward_areas[current_y])
             and len(self.reward_areas[current_y][current_x]) > 0
         ):
-
             # Pick up passenger
             passenger_data = random.choice(self.reward_areas[current_y][current_x])
             dest_x, dest_y = passenger_data["index_x"], passenger_data["index_y"]
