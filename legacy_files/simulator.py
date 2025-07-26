@@ -649,7 +649,8 @@ if __name__ == "__main__":
   car_id_datas = []
   time_datas = []
 
-  ani = FuncAnimation(fig, animate, frames=range(150000), init_func=init, blit=True, interval= 50)
+  # ani = FuncAnimation(fig, animate, frames=range(150000), init_func=init, blit=True, interval= 50)
+  ani = FuncAnimation(fig, animate, frames=range(100), init_func=init, blit=True, interval= 50)
   ani.save(str(epsilon) + "sfc-small.mp4", writer="ffmpeg")
 
   save_dir = "EntireSanFrancisco_" + str(epsilon) + "_"+ str(datetime.date.today())
