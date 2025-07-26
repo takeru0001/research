@@ -74,6 +74,12 @@ def setup_logging(log_level: str = "INFO") -> None:
     help="Logging level",
 )
 @click.option("--no-animation", is_flag=True, help="Disable animation saving")
+@click.option(
+    "--animation-skip",
+    default=100,
+    help="Animation frame skip interval (1=every frame, 100=every 100th frame)",
+    type=click.IntRange(1, 10000),
+)
 def run_simulation(
     cars: int,
     epsilon: float,
@@ -83,6 +89,7 @@ def run_simulation(
     output_dir: Path | None,
     log_level: str,
     no_animation: bool,
+    animation_skip: int,
 ) -> None:
     """Run the taxi mobility simulation."""
     # Set up logging
@@ -103,6 +110,7 @@ def run_simulation(
         settings.num_of_division = divisions
         settings.log_level = log_level
         settings.save_animation = not no_animation
+        settings.animation_frame_skip = animation_skip
 
         if output_dir:
             settings.output_dir = output_dir
