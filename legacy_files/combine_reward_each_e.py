@@ -1,4 +1,5 @@
 import os
+
 import matplotlib.pyplot as plt
 
 path = "./reward/"
@@ -12,10 +13,10 @@ files.sort()
 # output bar
 plt.figure()
 total_reawrd = []
-left = [1,2,3,4,5,6,7,8]
+left = [1, 2, 3, 4, 5, 6, 7, 8]
 label = [0.0, 0.01, 0.05, 0.1, 0.2, 0.5, 0.8, 1.0]
 for infilename in files:
-    with open(path + infilename, "r") as f:
+    with open(path + infilename) as f:
         for line in f:
             reward = float(line.replace("\n", ""))
     total_reawrd.append(reward)
@@ -31,7 +32,7 @@ plt.figure()
 for infilename in files:
     e = infilename[13:-4]
     total_rewards = []
-    with open(path + infilename, "r") as f:
+    with open(path + infilename) as f:
         for line in f:
             reward = float(line.replace("\n", ""))
             total_rewards.append(reward)
@@ -49,11 +50,11 @@ plt.figure()
 for infilename in files:
     e = infilename[13:-4]
     total_rewards = []
-    with open(path + infilename, "r") as f:
+    with open(path + infilename) as f:
         for line in f:
             reward = float(line.replace("\n", ""))
             total_rewards.append(reward)
-    
+
     reward_change = []
     prev_reward = total_rewards[0]
     for i in range(len(total_rewards)):

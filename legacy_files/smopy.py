@@ -7,21 +7,18 @@ Smopy returns an OpenStreetMap tile image!
 # -----------------------------------------------------------------------------
 # Imports
 # -----------------------------------------------------------------------------
-from __future__ import print_function
 
-from six import BytesIO
-from six.moves.urllib.request import urlopen, Request
-
-from PIL import Image
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from IPython.display import display_png
-
+from PIL import Image
+from six import BytesIO
+from six.moves.urllib.request import Request, urlopen
 
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-__version__ = '0.0.6'
+__version__ = "0.0.6"
 
 
 # -----------------------------------------------------------------------------
@@ -40,7 +37,7 @@ def fetch_tile(x, y, z, tileserver):
     """
 
     url = get_url(x, y, z, tileserver)
-    req = Request(url, data=None, headers={'User-Agent': 'smopy'})
+    req = Request(url, data=None, headers={"User-Agent": "smopy"})
     png = BytesIO(urlopen(req).read())
     img = Image.open(png)
     img.load()
@@ -54,10 +51,14 @@ def fetch_map(box, z, tileserver, tilesize, maxtiles):
     x0, y0, x1, y1 = box
     sx, sy = get_box_size(box)
     if sx * sy >= maxtiles:
-        raise Exception(("You are requesting a very large map, beware of "
-                         "OpenStreetMap tile usage policy "
-                         "(http://wiki.openstreetmap.org/wiki/Tile_usage_policy)."))
-    img = Image.new('RGB', (sx*tilesize, sy*tilesize))
+        raise Exception(
+
+                "You are requesting a very large map, beware of "
+                "OpenStreetMap tile usage policy "
+                "(http://wiki.openstreetmap.org/wiki/Tile_usage_policy)."
+
+        )
+    img = Image.new("RGB", (sx * tilesize, sy * tilesize))
     for x in range(x0, x1 + 1):
         for y in range(y0, y1 + 1):
             px, py = tilesize * (x - x0), tilesize * (y - y0)
@@ -96,7 +97,7 @@ def determine_scale(latitude, z):
     # For zoom = 0 at equator
     meter_per_pixel = 156543.03
 
-    resolution = meter_per_pixel * np.cos(latitude) / (2 ** z)
+    resolution = meter_per_pixel * np.cos(latitude) / (2**z)
 
     return resolution
 
@@ -107,7 +108,7 @@ def determine_scale(latitude, z):
 def image_to_png(img):
     """Convert a PIL image to a PNG binary string."""
     exp = BytesIO()
-    img.save(exp, format='png')
+    img.save(exp, format="png")
     exp.seek(0)
     s = exp.read()
     exp.close()
@@ -132,14 +133,13 @@ def deg2num(latitude, longitude, zoom, do_round=True):
 
     """
     lat_rad = np.radians(latitude)
-    n = 2.0 ** zoom
+    n = 2.0**zoom
     if do_round:
         f = np.floor
     else:
         f = lambda x: x
-    xtile = f((longitude + 180.) / 360. * n)
-    ytile = f((1.0 - np.log(np.tan(lat_rad) + (1 / np.cos(lat_rad))) / np.pi) /
-              2. * n)
+    xtile = f((longitude + 180.0) / 360.0 * n)
+    ytile = f((1.0 - np.log(np.tan(lat_rad) + (1 / np.cos(lat_rad))) / np.pi) / 2.0 * n)
     if do_round:
         if isinstance(xtile, np.ndarray):
             xtile = xtile.astype(np.int32)
@@ -158,8 +158,8 @@ def num2deg(xtile, ytile, zoom):
     Source: http://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Python
 
     """
-    n = 2.0 ** zoom
-    longitude = xtile / n * 360. - 180.
+    n = 2.0**zoom
+    longitude = xtile / n * 360.0 - 180.0
     latitude = np.degrees(np.arctan(np.sinh(np.pi * (1 - 2 * ytile / n))))
 
     return (latitude, longitude)
@@ -201,7 +201,7 @@ def _box(*args):
 
     # Case A.
     if nargs == 1:
-        assert hasattr(args[0], '__len__')
+        assert hasattr(args[0], "__len__")
         pos = args[0]
         assert len(pos) in (2, 4)
         if len(pos) == 2:
@@ -212,7 +212,7 @@ def _box(*args):
 
     elif nargs == 2:
         # Case C.
-        if not hasattr(args[0], '__len__'):
+        if not hasattr(args[0], "__len__"):
             pos0 = args[0], args[1]
         # Case D.
         else:
@@ -229,21 +229,20 @@ def _box(*args):
     return (pos0[0], pos0[1], pos1[0], pos1[1])
 
 
-def extend_box(box_latlon, margin=.1):
+def extend_box(box_latlon, margin=0.1):
     """Extend a box in geographical coordinates with a relative margin."""
     (lat0, lon0, lat1, lon1) = box_latlon
     lat0, lat1 = min(lat0, lat1), max(lat0, lat1)
     lon0, lon1 = min(lon0, lon1), max(lon0, lon1)
     dlat = max((lat1 - lat0) * margin, 0.0005)
     dlon = max((lon1 - lon0) * margin, 0.0005 / np.cos(np.radians(lat0)))
-    return (lat0 - dlat, lon0 - dlon,
-            lat1 + dlat, lon1 + dlon)
+    return (lat0 - dlat, lon0 - dlon, lat1 + dlat, lon1 + dlon)
 
 
 # -----------------------------------------------------------------------------
 # Main Map class
 # -----------------------------------------------------------------------------
-class Map(object):
+class Map:
 
     """Represent an OpenStreetMap image.
 
@@ -280,12 +279,14 @@ class Map(object):
         Can be called with `Map(box, z=z)` or `Map(lat, lon, z=z, tileserver="https://tile.openstreetmap.org/{z}/{x}/{y}.png")`.
 
         """
-        z = kwargs.get('z', 18)
-        margin = kwargs.get('margin', .05)
+        z = kwargs.get("z", 18)
+        margin = kwargs.get("margin", 0.05)
 
-        self.tileserver = kwargs.get('tileserver', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png')
-        self.tilesize = kwargs.get('tilesize', 256)
-        self.maxtiles = kwargs.get('maxtiles', 16)
+        self.tileserver = kwargs.get(
+            "tileserver", "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        )
+        self.tilesize = kwargs.get("tilesize", 256)
+        self.maxtiles = kwargs.get("maxtiles", 16)
 
         box = _box(*args)
         if margin is not None:
@@ -294,8 +295,9 @@ class Map(object):
 
         self.z = self.get_allowed_zoom(z)
         if z > self.z:
-            print('Lowered zoom level to keep map size reasonable. '
-                  '(z = %d)' % self.z)
+            print(
+                "Lowered zoom level to keep map size reasonable. " "(z = %d)" % self.z
+            )
         else:
             self.z = z
         self.box_tile = get_tile_box(self.box, self.z)
@@ -335,7 +337,9 @@ class Map(object):
     def fetch(self):
         """Fetch the image from OSM's servers."""
         if self.img is None:
-            self.img = fetch_map(self.box_tile, self.z, self.tileserver, self.tilesize, self.maxtiles)
+            self.img = fetch_map(
+                self.box_tile, self.z, self.tileserver, self.tilesize, self.maxtiles
+            )
         self.w, self.h = self.img.size
         return self.img
 
@@ -363,7 +367,7 @@ class Map(object):
             plt.grid(False)
             plt.xlim(0, self.w)
             plt.ylim(self.h, 0)
-            plt.axis('off')
+            plt.axis("off")
             plt.tight_layout()
         ax.imshow(self.img, **imshow_kwargs)
         return ax
@@ -384,5 +388,5 @@ class Map(object):
     def save_png(self, filename):
         """Save the image to a PNG file."""
         png = image_to_png(self.img)
-        with open(filename, 'wb') as f:
+        with open(filename, "wb") as f:
             f.write(png)
