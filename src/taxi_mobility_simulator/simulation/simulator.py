@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import smopy
-from matplotlib.animation import FuncAnimation
 from PIL import Image
 
 from ..config.settings import SimulationSettings
@@ -223,6 +222,7 @@ class TaxiSimulator:
         cache_dir.mkdir(exist_ok=True)
 
         # Generate cache keys
+        logger.info("Generating cache keys...")
         network_cache_key = self._generate_cache_key(
             "network",
             [
@@ -245,26 +245,34 @@ class TaxiSimulator:
         probability_cache_file = cache_dir / f"probability_{probability_cache_key}.pkl"
 
         # Load or build network data
+        logger.info("Setting up network data...")
         if network_cache_file.exists() and self._is_cache_valid(
             network_cache_file, [self.settings.network_file, self.settings.geojson_file]
         ):
             logger.info("Loading cached network data")
             self._load_cached_network(network_cache_file)
         else:
-            logger.info("Building network from scratch")
+            logger.info("Building network from scratch (this may take several minutes)")
             # Load map and boundaries
+            logger.info("Loading map and calculating boundaries...")
             self.smopy_map, self.map_bounds = self._load_map()
 
             # Calculate area dimensions
+            logger.info("Calculating area dimensions...")
             self._calculate_area_dimensions()
 
             # Create road network (most expensive operation)
+            logger.info(
+                "Creating road network (this is the most time-consuming step)..."
+            )
             self._create_road_network()
 
             # Cache the network data
+            logger.info("Caching network data for future use...")
             self._cache_network_data(network_cache_file)
 
         # Load or build ride probabilities
+        logger.info("Setting up ride probabilities...")
         if probability_cache_file.exists() and self._is_cache_valid(
             probability_cache_file,
             [self.settings.network_file, self.settings.taxi_data_dir],
@@ -272,7 +280,7 @@ class TaxiSimulator:
             logger.info("Loading cached ride probabilities")
             self._load_cached_probabilities(probability_cache_file)
         else:
-            logger.info("Calculating ride probabilities from scratch")
+            logger.info("Calculating ride probabilities from scratch...")
             (
                 self.ride_probabilities,
                 self.reward_areas,
@@ -282,16 +290,282 @@ class TaxiSimulator:
                 self.settings.num_of_division,
             )
             # Cache the probability data
+            logger.info("Caching probability data for future use...")
             self._cache_probability_data(probability_cache_file)
 
         # Initialize cars
+        logger.info("Initializing cars...")
         self._initialize_cars()
 
         # Setup animation
         if self.settings.save_animation:
+            logger.info("Setting up animation components...")
             self._setup_animation()
 
-        logger.info("Simulation setup completed")
+        logger.info("Simulation setup completed successfully")
+
+    def _run_optimized_animation(self) -> None:
+        """Run simulation with optimized animation using frame skipping."""
+        logger.info(
+            f"Running optimized animation with frame skip: {self.settings.animation_frame_skip}"
+        )
+
+        # Calculate effective frames for animation
+        effective_frames = self.settings.max_steps // self.settings.animation_frame_skip
+        logger.info(
+            f"Creating animation with {effective_frames} frames (skipping every {self.settings.animation_frame_skip} steps)"
+        )
+
+        # Setup video writer for streaming
+        animation_file = (
+            self.settings.get_output_dir() / f"simulation_{self.settings.epsilon}.mp4"
+        )
+
+        try:
+            # Try ffmpeg first for better performance
+            from matplotlib.animation import FFMpegWriter
+
+            writer = FFMpegWriter(
+                fps=20, metadata={"artist": "TaxiSimulator"}, bitrate=1800
+            )
+
+            with writer.saving(self.fig, str(animation_file), dpi=100):
+                logger.info("Starting optimized animation recording...")
+
+                for step in range(self.settings.max_steps):
+                    # Run simulation step
+                    self._simulate_step(step)
+
+                    # Update animation only at specified intervals
+                    if step % self.settings.animation_frame_skip == 0:
+                        self._update_animation_frame(step)
+                        writer.grab_frame()
+
+                        if step % (self.settings.animation_frame_skip * 10) == 0:
+                            logger.info(
+                                f"Animation progress: {step}/{self.settings.max_steps} steps"
+                            )
+
+                    # Regular progress logging (define next_log_step if not defined)
+                    if not hasattr(self, "_next_log_step"):
+                        progress_intervals = [100, 500, 1000, 5000, 10000]
+                        self._next_log_step = min(progress_intervals)
+                        self._progress_intervals = progress_intervals
+
+                    if (
+                        step == self._next_log_step
+                        or step % max(1000, self.settings.max_steps // 20) == 0
+                    ):
+                        progress_pct = (step / self.settings.max_steps) * 100
+                        avg_reward = (
+                            sum(self.total_rewards[-100:])
+                            / min(len(self.total_rewards), 100)
+                            if self.total_rewards
+                            else 0
+                        )
+                        logger.info(
+                            f"Step {step:,}/{self.settings.max_steps:,} ({progress_pct:.1f}%) | "
+                            f"Cars: {len(self.cars_list)} | Time: {self.current_time_slot:02d}:00 | "
+                            f"Avg Reward (last 100): {avg_reward:.2f}"
+                        )
+
+                        # Update next log step
+                        if step == self._next_log_step:
+                            next_interval = next(
+                                (i for i in self._progress_intervals if i > step),
+                                self._progress_intervals[-1],
+                            )
+                            self._next_log_step = next_interval
+
+                    if len(self.cars_list) == 0:
+                        logger.info(f"All cars completed at step {step:,}")
+                        break
+
+            logger.info(f"Saved optimized animation to {animation_file}")
+
+        except ImportError:
+            logger.warning(
+                "FFMpeg not available, falling back to frame-by-frame GIF creation"
+            )
+            self._run_fallback_animation()
+        except Exception as e:
+            logger.error(f"Animation creation failed: {e}")
+            # Run without animation
+            self._run_without_animation()
+
+    def _run_fallback_animation(self) -> None:
+        """Fallback animation using frame-by-frame GIF creation."""
+        logger.info("Creating GIF animation with frame skipping...")
+
+        frames = []
+        max_frames = min(
+            500, self.settings.max_steps // self.settings.animation_frame_skip
+        )  # Limit GIF frames
+
+        progress_intervals = [100, 500, 1000, 5000, 10000]
+        next_log_step = min(progress_intervals)
+
+        for step in range(self.settings.max_steps):
+            self._simulate_step(step)
+
+            # Capture frame for GIF
+            if (
+                step % self.settings.animation_frame_skip == 0
+                and len(frames) < max_frames
+            ):
+                self._update_animation_frame(step)
+                # Convert plot to image
+                self.fig.canvas.draw()
+                buf = np.frombuffer(self.fig.canvas.tostring_rgb(), dtype=np.uint8)
+                buf = buf.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
+                frames.append(Image.fromarray(buf))
+
+                if len(frames) % 50 == 0:
+                    logger.info(f"Captured {len(frames)} animation frames")
+
+            # Progress logging
+            if (
+                step == next_log_step
+                or step % max(1000, self.settings.max_steps // 20) == 0
+            ):
+                progress_pct = (step / self.settings.max_steps) * 100
+                avg_reward = (
+                    sum(self.total_rewards[-100:]) / min(len(self.total_rewards), 100)
+                    if self.total_rewards
+                    else 0
+                )
+                logger.info(
+                    f"Step {step:,}/{self.settings.max_steps:,} ({progress_pct:.1f}%) | "
+                    f"Cars: {len(self.cars_list)} | Time: {self.current_time_slot:02d}:00 | "
+                    f"Avg Reward (last 100): {avg_reward:.2f}"
+                )
+
+                if step == next_log_step:
+                    next_interval = next(
+                        (i for i in progress_intervals if i > step),
+                        progress_intervals[-1],
+                    )
+                    next_log_step = next_interval
+
+            if len(self.cars_list) == 0:
+                logger.info(f"All cars completed at step {step:,}")
+                break
+
+        # Save GIF
+        if frames:
+            animation_file = (
+                self.settings.get_output_dir()
+                / f"simulation_{self.settings.epsilon}.gif"
+            )
+            frames[0].save(
+                animation_file,
+                save_all=True,
+                append_images=frames[1:],
+                duration=100,  # 100ms per frame
+                loop=0,
+            )
+            logger.info(
+                f"Saved GIF animation with {len(frames)} frames to {animation_file}"
+            )
+        else:
+            logger.warning("No frames captured for animation")
+
+    def _run_without_animation(self) -> None:
+        """Run simulation without animation (fallback)."""
+        logger.info("Running simulation without animation")
+
+        progress_intervals = [100, 500, 1000, 5000, 10000]
+        next_log_step = min(progress_intervals)
+
+        for step in range(self.settings.max_steps):
+            self._simulate_step(step)
+
+            # Dynamic progress logging based on simulation size
+            if (
+                step == next_log_step
+                or step % max(1000, self.settings.max_steps // 20) == 0
+            ):
+                progress_pct = (step / self.settings.max_steps) * 100
+                avg_reward = (
+                    sum(self.total_rewards[-100:]) / min(len(self.total_rewards), 100)
+                    if self.total_rewards
+                    else 0
+                )
+                logger.info(
+                    f"Step {step:,}/{self.settings.max_steps:,} ({progress_pct:.1f}%) | "
+                    f"Cars: {len(self.cars_list)} | Time: {self.current_time_slot:02d}:00 | "
+                    f"Avg Reward (last 100): {avg_reward:.2f}"
+                )
+
+                # Update next log step
+                if step == next_log_step:
+                    next_interval = next(
+                        (i for i in progress_intervals if i > step),
+                        progress_intervals[-1],
+                    )
+                    next_log_step = next_interval
+
+            if len(self.cars_list) == 0:
+                logger.info(f"All cars completed at step {step:,}")
+                break
+
+    def _update_animation_frame(self, step: int) -> None:
+        """Update animation frame with current car positions."""
+        # Update visualization
+        empty_cars = [
+            (car.current_position[0], car.current_position[1])
+            for car in self.cars_list
+            if not car.ride_flag
+        ]
+        occupied_cars = [
+            (car.current_position[0], car.current_position[1])
+            for car in self.cars_list
+            if car.ride_flag
+        ]
+
+        empty_dests = []
+        occupied_dests = []
+
+        for car in self.cars_list:
+            if car.dest_node_id in self.node_mappings["id_to_coordinate"]:
+                coord = self.node_mappings["id_to_coordinate"][car.dest_node_id]
+                dest_x, dest_y = self.smopy_map.to_pixels(
+                    coord["latitude"], coord["longitude"]
+                )
+
+                if car.ride_flag:
+                    occupied_dests.append((dest_x, dest_y))
+                else:
+                    empty_dests.append((dest_x, dest_y))
+
+        # Update plot data
+        if empty_cars:
+            x_data, y_data = zip(*empty_cars, strict=False)
+            self.line.set_data(x_data, y_data)
+        else:
+            self.line.set_data([], [])
+
+        if occupied_cars:
+            x_data, y_data = zip(*occupied_cars, strict=False)
+            self.ride_line.set_data(x_data, y_data)
+        else:
+            self.ride_line.set_data([], [])
+
+        if empty_dests:
+            x_data, y_data = zip(*empty_dests, strict=False)
+            self.dest_line.set_data(x_data, y_data)
+        else:
+            self.dest_line.set_data([], [])
+
+        if occupied_dests:
+            x_data, y_data = zip(*occupied_dests, strict=False)
+            self.dest_ride_line.set_data(x_data, y_data)
+        else:
+            self.dest_ride_line.set_data([], [])
+
+        self.title_text.set_text(
+            f"Step: {step}, Cars: {len(self.cars_list)}, Time: {self.current_time_slot:02d}:00"
+        )
 
     def _load_map(self) -> tuple[smopy.Map, tuple[float, float, float, float]]:
         """Load map data and create smopy map."""
@@ -702,37 +976,15 @@ class TaxiSimulator:
 
     def _run_simulation(self) -> None:
         """Run the main simulation loop."""
-        logger.info("Starting simulation loop")
+        logger.info(f"Starting simulation loop for {self.settings.max_steps} steps")
 
         if self.settings.save_animation and self.fig is not None:
-            # Run with animation
-            ani = FuncAnimation(
-                self.fig,
-                self._animate_step,
-                frames=range(self.settings.max_steps),
-                init_func=self._init_animation,
-                blit=False,
-                interval=self.settings.animation_interval,
-            )
+            # Use optimized animation with frame skipping
+            self._run_optimized_animation()
 
-            # Save animation
-            animation_file = (
-                self.settings.get_output_dir()
-                / f"simulation_{self.settings.epsilon}.mp4"
-            )
-            ani.save(str(animation_file), writer="ffmpeg", fps=20)
-            logger.info(f"Saved animation to {animation_file}")
         else:
             # Run without animation
-            for step in range(self.settings.max_steps):
-                self._simulate_step(step)
-
-                if step % 1000 == 0:
-                    logger.info(f"Simulation step: {step}")
-
-                if len(self.cars_list) == 0:
-                    logger.info(f"All cars completed at step {step}")
-                    break
+            self._run_without_animation()
 
     def _init_animation(self):
         """Initialize animation."""
@@ -822,8 +1074,14 @@ class TaxiSimulator:
         self.animation_count += 1
 
         # Update time slot (2880 steps = 1 hour)
+        previous_time_slot = self.current_time_slot
         if self.animation_count % 2880 == 0:
             self.current_time_slot = (self.current_time_slot + 1) % 24
+            # Log time slot changes
+            if previous_time_slot != self.current_time_slot:
+                logger.info(
+                    f"Time slot changed to {self.current_time_slot:02d}:00 at step {step:,}"
+                )
 
         # Move all cars and handle arrivals
         cars_to_remove = []
@@ -858,9 +1116,15 @@ class TaxiSimulator:
             avg_reward = reward_sum / len(self.cars_list)
             self.total_rewards.append(avg_reward)
 
-        # Cleanup
-        if step % 1000 == 0:
+        # Cleanup and detailed logging for major milestones
+        if step % 10000 == 0 and step > 0:
             gc.collect()
+            occupied_cars = sum(1 for car in self.cars_list if car.ride_flag)
+            empty_cars = len(self.cars_list) - occupied_cars
+            logger.info(
+                f"Milestone at step {step:,}: {occupied_cars} occupied cars, "
+                f"{empty_cars} empty cars, total trajectories: {len(self.car_trajectories):,}"
+            )
 
     def _handle_car_arrival(self, car: Car, step: int) -> Car:
         """Handle car arrival at destination and create new car."""

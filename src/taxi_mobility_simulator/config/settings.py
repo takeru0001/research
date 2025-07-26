@@ -52,7 +52,12 @@ class SimulationSettings(BaseSettings):
         default=50, ge=1, description="Animation interval in milliseconds"
     )
     save_animation: bool = Field(
-        default=True, description="Whether to save animation as video"
+        default=False, description="Whether to save animation as video"
+    )
+    animation_frame_skip: int = Field(
+        default=100,
+        ge=1,
+        description="Skip frames for animation (1=every frame, 100=every 100th frame)",
     )
 
     # Output settings
